@@ -1,0 +1,19 @@
+# Large artefacts live on Google Drive, never in git
+data/
+runs/
+weights/
+*.pt
+*.pth
+*.safetensors
+*.onnx
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/

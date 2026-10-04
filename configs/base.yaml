@@ -1,0 +1,62 @@
+# Single source of truth for every tunable number. Frozen at the end of Phase 1;
+# after that, ask before changing anything here (see CLAUDE.md).
+# Values marked "decide" are proposals from the execution plan, not yet decisions.
+
+seed: 42
+
+# Relative paths resolve against the repo root. Each can be overridden by an env var
+# (shown on the right) so Colab can point at Google Drive without editing this file.
+paths:
+  raw_root: data/raw          # UVH_RAW_ROOT: Hub downloads (JSONs, original PNGs). Colab: local disk
+  data_root: data/prepared    # UVH_DATA_ROOT: 1280 px JPEGs + YOLO labels. Colab: Drive
+  runs_root: runs             # UVH_RUNS_ROOT: Ultralytics runs. Colab: Drive
+  weights_dir: weights        # UVH_WEIGHTS_DIR: COCO-pretrained .pt files
+  splits_dir: splits
+  results_dir: results
+
+dataset:
+  repo_id: iisc-aim/UVH-26
+  revision: 59f82c57821e8a54dc40bc1f42e83909dbad0b70   # pinned 2026-10-05
+  image_dirs:
+    train: UVH-26-Train/data
+    val: UVH-26-Val/data
+  annotations:
+    train: {mv: UVH-26-Train/UVH-26-MV-Train.json, st: UVH-26-Train/UVH-26-ST-Train.json}
+    val: {mv: UVH-26-Val/UVH-26-MV-Val.json, st: UVH-26-Val/UVH-26-ST-Val.json}
+  # COCO category_id k maps to YOLO class k-1, in this order.
+  classes: [Hatchback, Sedan, SUV, MUV, Bus, Truck, Three-wheeler, Two-wheeler,
+            LCV, Mini-bus, Tempo-traveller, Bicycle, Van, Others]
+
+pool:
+  size: 4000                  # decide (Phase 1)
+  smoke_size: 20              # CPU smoke tests
+  require_both_labels: true   # ST labels cover only 81% of images; the ablation needs both
+
+prepare:
+  long_side: 1280
+  jpeg_quality: 95
+
+cluster:
+  clip_model: openai/clip-vit-base-patch32
+  batch_size: 32
+  tau: 0.92                   # decide (Phase 1), tuned by eye on pair grids
+
+split:
+  ratios: {train: 0.70, val: 0.15, test: 0.15}   # decide (Phase 1)
+  min_test_instances: 30
+
+train:
+  model: yolov8s.pt           # decide (Phase 2)
+  imgsz: 960                  # decide (Phase 2)
+  batch: 8
+  epochs: 40
+  patience: 10
+  freeze: null                # decide (Phase 2 pilot): 10 = backbone frozen, null = all trainable
+  workers: 2
+  save_period: 5
+  deterministic: true
+
+evaluate:
+  iou_nms: 0.7
+  conf_sweep: {start: 0.05, stop: 0.70, step: 0.05}
+  conf: null                  # decide (Phase 4), frozen on val before the test set is opened
