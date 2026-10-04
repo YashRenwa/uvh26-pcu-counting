@@ -23,10 +23,13 @@ secrets; an `HF_TOKEN` avoids anonymous Hub rate limits during the image downloa
 
 ```bash
 uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.txt jupyter
-.venv/bin/python -m src.download annotations   # four COCO JSONs, ~150 MB
-.venv/bin/python -m src.download index         # file list from the Hub
-.venv/bin/python -m src.download smoke         # 20 seeded images for smoke tests
+.venv/bin/python -m src.download pool      # annotations, file index, pool list, pool PNGs
+.venv/bin/python -m src.prepare            # 1280 px JPEGs, YOLO labels for MV and ST
+.venv/bin/python -m src.cluster            # CLIP pseudo-cameras, leakage, pair grids
+.venv/bin/python -m src.split              # group split, class-count table, test checksum
 ```
+
+Add `--smoke` to any of these to run on a 20-image pool with outputs under `data/smoke/`.
 
 All tunable numbers live in `configs/base.yaml`. Paths can be redirected with `UVH_RAW_ROOT`,
 `UVH_DATA_ROOT`, `UVH_RUNS_ROOT` and `UVH_WEIGHTS_DIR` (the notebook points them at Drive).
@@ -38,15 +41,16 @@ CLAUDE.md          rules for Claude Code sessions (sealed test set, ablation dis
 configs/base.yaml  seed, sizes, epochs, thresholds: the only place numbers are set
 src/
   common.py        config loading, seeding, results/*.json writer
-  download.py      partial Hub download: annotations, file index, image lists
-  prepare.py       1280 px JPEG, COCO -> YOLO txt, MV and ST label sets       (Phase 1)
-  cluster.py       CLIP embeddings, pseudo-cameras, leakage measurement       (Phase 1)
-  split.py         group split, class-balance check, split lists              (Phase 1)
+  download.py      partial Hub download: annotations, file index, pool list, PNGs
+  prepare.py       1280 px JPEG, COCO -> YOLO txt, MV and ST label sets
+  cluster.py       CLIP embeddings, pseudo-cameras, leakage measurement
+  split.py         group split, class-balance check, split lists, test checksum
+  plotting.py      shared matplotlib style for report figures
   train.py         thin wrapper over Ultralytics train                        (Phase 2)
   evaluate.py      mAP, PR curve, count and PCU error, threshold selection    (Phases 2-5)
   errors.py        failure mining and image grids                             (Phase 6)
 notebooks/         the submission notebook
-splits/            train.txt, val.txt, test.txt and test.txt's checksum
+splits/            pool.csv, groups.csv, train/val/test.txt, test.sha256 (the frozen split)
 results/           small JSON/CSV outputs quoted in the report
 ```
 

@@ -43,6 +43,7 @@ cluster:
 
 split:
   ratios: {train: 0.70, val: 0.15, test: 0.15}   # decide (Phase 1)
+  seed_offset: 0              # split seed = seed + seed_offset; 1 = the one permitted re-roll
   min_test_instances: 30
 
 train:

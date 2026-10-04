@@ -23,15 +23,31 @@ PATH_ENV = {
 }
 
 
-def load_config(path: str | Path = DEFAULT_CONFIG) -> dict[str, Any]:
-    """Load the YAML config and resolve every entry in `paths` to an absolute Path."""
+def load_config(path: str | Path = DEFAULT_CONFIG, smoke: bool = False) -> dict[str, Any]:
+    """Load the YAML config and resolve every entry in `paths` to an absolute Path.
+
+    smoke=True shrinks the pool to `pool.smoke_size` and moves prepared data, splits and
+    results under <data_root>/../smoke/, so CPU smoke tests never touch the real outputs.
+    """
     with open(path) as f:
         cfg = yaml.safe_load(f)
     for key, value in cfg["paths"].items():
         value = os.environ.get(PATH_ENV.get(key, ""), value)
         p = Path(value).expanduser()
         cfg["paths"][key] = p if p.is_absolute() else ROOT / p
+    if smoke:
+        smoke_dir = cfg["paths"]["data_root"].parent / "smoke"
+        cfg["pool"]["size"] = cfg["pool"]["smoke_size"]
+        cfg["paths"].update(data_root=smoke_dir / "prepared", splits_dir=smoke_dir / "splits",
+                            results_dir=smoke_dir / "results")
+    cfg["smoke"] = smoke
     return cfg
+
+
+def add_common_args(ap) -> None:
+    """CLI flags shared by every src/ script."""
+    ap.add_argument("--config", default=str(DEFAULT_CONFIG))
+    ap.add_argument("--smoke", action="store_true", help="tiny pool, outputs under data/smoke/")
 
 
 def set_seed(seed: int) -> None:

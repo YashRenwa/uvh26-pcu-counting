@@ -43,7 +43,13 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
 
 ## Environment
 - Local: `.venv` (Python 3.12, created with uv). Run scripts as `.venv/bin/python -m src.<module>`.
-  Smoke images: `data/raw/smoke.csv`; COCO weights in `weights/`; CLIP in the HF cache.
+  `--smoke` runs any script on a 20-image pool nested in the real one, with prepared data,
+  splits and results under `data/smoke/`. COCO weights in `weights/`; CLIP in the HF cache.
+  Notebook kernel for local execution: `uvh26` (installed inside .venv).
+- The split is frozen by files, not by recomputation: `splits/pool.csv`, `splits/groups.csv`,
+  `splits/{train,val,test}.txt`, `splits/test.sha256`. CLIP differs slightly across CPU, MPS
+  and CUDA, so the notebook recomputes groups only to compare. split.py refuses to overwrite
+  a split with a checksum unless `--force`, which is allowed only before Phase 2.
 - Colab: the notebook installs requirements.txt minus the lines marked `colab-skip` (keeps Colab's
   CUDA torch and avoids a forced restart) and prints every library version. Large files
   (data/, runs/, weights/) live on Google Drive via the UVH_* env vars and are git-ignored.
