@@ -58,17 +58,25 @@ def load_gt(cfg: dict[str, Any], stems: list[str], label_set: str) -> dict[str, 
 
 
 def predict(weights: Path, image_paths: list[Path], imgsz: int, conf: float = 0.001, iou: float = 0.7,
-            classes: list[int] | None = None, device: str | None = None) -> dict[str, tuple[np.ndarray, ...]]:
-    """Per image (stem): (class ids, confidences, normalised xyxy boxes). Ultralytics val-style settings."""
+            classes: list[int] | None = None, device: str | None = None, batch: int = 16) -> dict[str, tuple[np.ndarray, ...]]:
+    """Per image (stem): (class ids, confidences, normalised xyxy boxes). Ultralytics val-style settings.
+
+    Images go to the model `batch` at a time: Ultralytics runs a list source as ONE batch, so passing
+    every path at once loads them all and exhausts GPU memory (452 val images needed ~13 GB on a T4).
+    """
     from ultralytics import YOLO
 
     from src.train import default_device
 
-    model, out = YOLO(str(weights)), {}
-    for r in model.predict(source=[str(p) for p in image_paths], imgsz=imgsz, conf=conf, iou=iou, classes=classes,
-                           max_det=300, device=device or default_device(), stream=True, verbose=False):
-        b = r.boxes
-        out[Path(r.path).stem] = (b.cls.cpu().numpy().astype(int), b.conf.cpu().numpy(), b.xyxyn.cpu().numpy())
+    model, out, device = YOLO(str(weights)), {}, device or default_device()
+    for i in range(0, len(image_paths), batch):
+        chunk = [str(p) for p in image_paths[i:i + batch]]
+        for r in model.predict(source=chunk, imgsz=imgsz, conf=conf, iou=iou, classes=classes,
+                               max_det=300, device=device, stream=True, verbose=False):
+            b = r.boxes
+            out[Path(r.path).stem] = (b.cls.cpu().numpy().astype(int), b.conf.cpu().numpy(), b.xyxyn.cpu().numpy())
+    if len(out) != len(image_paths):
+        raise RuntimeError(f"got predictions for {len(out)} of {len(image_paths)} images")
     return out
 
 
