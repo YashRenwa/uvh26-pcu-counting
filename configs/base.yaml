@@ -11,6 +11,7 @@ paths:
   data_root: data/prepared    # UVH_DATA_ROOT: 1280 px JPEGs + YOLO labels. Colab: Drive
   runs_root: runs             # UVH_RUNS_ROOT: Ultralytics runs. Colab: Drive
   weights_dir: weights        # UVH_WEIGHTS_DIR: COCO-pretrained .pt files
+  datasets_root: data/datasets  # UVH_DATASETS_ROOT: Ultralytics view of the split. Colab: local disk
   splits_dir: splits
   results_dir: results
 
@@ -39,23 +40,37 @@ prepare:
 cluster:
   clip_model: openai/clip-vit-base-patch32
   batch_size: 32
-  tau: 0.92                   # decide (Phase 1), tuned by eye on pair grids
+  # Link two images when CLIP cosine >= clip_min (if set) AND thumbnail r >= r_min (if set).
+  # Decided 2026-10-05 from results/phase1_sweep/ (rule B): no giant component, boundary pairs clean.
+  link: {clip_min: 0.88, r_min: 0.7}
 
 split:
-  ratios: {train: 0.70, val: 0.15, test: 0.15}   # decide (Phase 1)
-  seed_offset: 0              # split seed = seed + seed_offset; 1 = the one permitted re-roll
+  # Pre-purge targets. The purge moves ~40% of val/test into train; 60/20/20 lands near 76/12/12
+  # and keeps test above min_test_images (decided 2026-10-05; 70/15/15 left test at 277-367).
+  ratios: {train: 0.60, val: 0.20, test: 0.20}
+  seed_search: 50             # try seeds seed..seed+49, keep the best class balance (label counts only)
+  # Purge, applied inside every candidate split: a val/test image with a direct train partner at
+  # CLIP >= clip_min AND r >= r_min is moved to train (one pass, direct pairs only). unit: group
+  # moves the image's whole pseudo-camera so groups never straddle splits; unit: image moves it alone.
+  purge: {clip_min: 0.85, r_min: 0.5, unit: group}
+  min_test_images: 400        # if the chosen post-purge split has fewer test images, stop and ask
   min_test_instances: 30
 
 train:
-  model: yolov8s.pt           # decide (Phase 2)
-  imgsz: 960                  # decide (Phase 2)
+  model: yolov8s.pt           # always loaded by explicit path from weights_dir; never a default model
+  imgsz: 960
   batch: 8
-  epochs: 40
+  epochs: 40                  # decide (Phase 2): set from the pilot so one run fits budget_minutes
   patience: 10
   freeze: null                # decide (Phase 2 pilot): 10 = backbone frozen, null = all trainable
   workers: 2
   save_period: 5
   deterministic: true
+  cache: false                # Ultralytics warns cache='ram' is non-deterministic
+  cls_remap: true             # Ultralytics 8.4 default, made explicit: seeds the Bus, Truck, Bicycle
+                              # head rows from COCO by class name (same for baseline and ablation)
+  pilot_epochs: 5             # Phase 2 freeze pilot length
+  budget_minutes: 90          # one full training run must fit a free Colab T4 session
 
 evaluate:
   iou_nms: 0.7

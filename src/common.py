@@ -20,6 +20,7 @@ PATH_ENV = {
     "data_root": "UVH_DATA_ROOT",
     "runs_root": "UVH_RUNS_ROOT",
     "weights_dir": "UVH_WEIGHTS_DIR",
+    "datasets_root": "UVH_DATASETS_ROOT",
 }
 
 
@@ -37,9 +38,13 @@ def load_config(path: str | Path = DEFAULT_CONFIG, smoke: bool = False) -> dict[
         cfg["paths"][key] = p if p.is_absolute() else ROOT / p
     if smoke:
         smoke_dir = cfg["paths"]["data_root"].parent / "smoke"
+        scale = cfg["pool"]["smoke_size"] / cfg["pool"]["size"]
         cfg["pool"]["size"] = cfg["pool"]["smoke_size"]
+        cfg["split"]["min_test_images"] = int(cfg["split"]["min_test_images"] * scale)
         cfg["paths"].update(data_root=smoke_dir / "prepared", splits_dir=smoke_dir / "splits",
-                            results_dir=smoke_dir / "results")
+                            results_dir=smoke_dir / "results", datasets_root=smoke_dir / "datasets",
+                            runs_root=smoke_dir / "runs")
+        cfg["train"].update(epochs=2, pilot_epochs=3)  # CPU smoke: exercise the code, not the model
     cfg["smoke"] = smoke
     return cfg
 

@@ -26,7 +26,12 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requi
 .venv/bin/python -m src.download pool      # annotations, file index, pool list, pool PNGs
 .venv/bin/python -m src.prepare            # 1280 px JPEGs, YOLO labels for MV and ST
 .venv/bin/python -m src.cluster            # CLIP pseudo-cameras, leakage, pair grids
-.venv/bin/python -m src.split              # group split, class-count table, test checksum
+.venv/bin/python -m src.split --preview    # plan the purged group split; writes nothing to splits/
+.venv/bin/python -m src.split --write      # freeze it: split lists and test.sha256
+.venv/bin/python -m src.evaluate coco-context        # COCO-pretrained YOLOv8s as-is on val
+.venv/bin/python -m src.train --labels mv --pilot frozen   # freeze pilot arm (also: --pilot full)
+.venv/bin/python -m src.train --pilot-summary        # minutes per epoch, epochs within budget
+.venv/bin/python -m src.train --labels mv            # baseline (ablation: --labels st)
 ```
 
 Add `--smoke` to any of these to run on a 20-image pool with outputs under `data/smoke/`.
@@ -46,8 +51,8 @@ src/
   cluster.py       CLIP embeddings, pseudo-cameras, leakage measurement
   split.py         group split, class-balance check, split lists, test checksum
   plotting.py      shared matplotlib style for report figures
-  train.py         thin wrapper over Ultralytics train                        (Phase 2)
-  evaluate.py      mAP, PR curve, count and PCU error, threshold selection    (Phases 2-5)
+  train.py         Ultralytics dataset view, YOLOv8 training, freeze pilot, epoch budget
+  evaluate.py      COCO-as-is context eval; counts, PCU, threshold sweep      (Phases 2-5)
   errors.py        failure mining and image grids                             (Phase 6)
 notebooks/         the submission notebook
 splits/            pool.csv, groups.csv, train/val/test.txt, test.sha256 (the frozen split)

@@ -53,6 +53,17 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
 - Colab: the notebook installs requirements.txt minus the lines marked `colab-skip` (keeps Colab's
   CUDA torch and avoids a forced restart) and prints every library version. Large files
   (data/, runs/, weights/) live on Google Drive via the UVH_* env vars and are git-ignored.
+- Training (src/train.py): the Ultralytics dataset view is rebuilt under `paths.datasets_root`
+  (Colab: /content/datasets, local disk) with per-split label dirs, so MV and ST never share a
+  label cache. The data yaml lists train and val only. `ensure_run` trains, resumes (last.pt still
+  has an optimizer) or skips (finished). Ultralytics 8.4's `cls_remap` (on, explicit in config)
+  seeds the Bus/Truck/Bicycle head rows from COCO; identical for MV and ST. CPU reruns are
+  bit-identical; CUDA uses deterministic=True with warn_only, so small differences are possible.
+- src/evaluate.py refuses split="test" unless allow_test=True; only a task that says Phase 5 may set it.
+- Phase 1 status (2026-10-05): pool and grouping (rule B) decided; the split is NOT frozen. The
+  purge left same-camera pairs in test (colour vs IR, glare, low CLIP). On ~90 hand-labelled hard
+  pairs, gradient-magnitude correlation (AUC 0.97) and edge overlap (0.96) beat CLIP (0.80) and
+  intensity thumbnail r (0.71). Awaiting the user's decision on the linking/purge signal.
 - transformers 5.x: `CLIPModel.get_image_features` returns an output object, not a tensor.
   The 512-d projected embedding is `.pooler_output`.
 - Ultralytics 8.4 also ships YOLO11/YOLO26; this project uses YOLOv8 (`yolov8*.pt`) per the handout.
