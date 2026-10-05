@@ -93,3 +93,4 @@ evaluate:
   iou_nms: 0.7
   conf_sweep: {start: 0.05, stop: 0.70, step: 0.05}
   conf: null                  # decide (Phase 4), frozen on val before the test set is opened
+  n_boot: 500                 # paired bootstrap resamples (images) for MV-vs-STAPLE confidence intervals

@@ -123,6 +123,39 @@ def detection_metrics(preds: dict, gts: dict, names: list[str]) -> dict[str, Any
             "per_class": per_class}
 
 
+def coarse_metrics(cfg: dict[str, Any], raw: dict, pred_to_coarse: dict[int, int], stems: list[str],
+                   label_sets=("mv", "st")) -> dict[str, Any]:
+    """Score raw predictions in the shared coarse classes, against each label set.
+
+    Predictions are mapped to coarse classes and NMS is re-run per coarse class (IoU evaluate.iou_nms),
+    so a fine-tuned model is not penalised for, e.g., a Hatchback and a Sedan box on one car.
+    """
+    import torch
+    from torchvision.ops import batched_nms
+
+    cid = {n: i for i, n in enumerate(COARSE)}
+    preds = {}
+    for stem, (cls, cf, bx) in raw.items():
+        c = np.array([pred_to_coarse[int(k)] for k in cls], int)
+        if len(c):
+            keep = batched_nms(torch.as_tensor(bx, dtype=torch.float32), torch.as_tensor(cf, dtype=torch.float32),
+                               torch.as_tensor(c), cfg["evaluate"]["iou_nms"]).numpy()[:300]
+            cls_, cf, bx = c[keep], cf[keep], bx[keep]
+        else:
+            cls_ = c
+        preds[stem] = (cls_, cf, bx)
+    uvh = np.array([cid[UVH_TO_COARSE[n]] for n in cfg["dataset"]["classes"]])
+    out = {}
+    for ls in label_sets:
+        gts = {st: (uvh[c], b) for st, (c, b) in load_gt(cfg, stems, ls).items()}
+        m = detection_metrics(preds, gts, COARSE)
+        mappable = [m["per_class"][c] for c in MAPPABLE if c in m["per_class"]]
+        m["mAP50_mappable_only"] = round(float(np.mean([c["AP50"] for c in mappable])), 4)
+        m["mAP50_95_mappable_only"] = round(float(np.mean([c["AP50_95"] for c in mappable])), 4)
+        out[ls] = m
+    return out
+
+
 def coco_context(cfg: dict[str, Any], split: str = "val", label_sets=("mv", "st")) -> dict[str, Any]:
     """COCO-pretrained YOLOv8 as-is on `split`, scored in the shared coarse classes."""
     from src.train import weights_path
@@ -131,20 +164,24 @@ def coco_context(cfg: dict[str, Any], split: str = "val", label_sets=("mv", "st"
     paths = [cfg["paths"]["data_root"] / "images" / f"{s}.jpg" for s in stems]
     raw = predict(weights_path(cfg), paths, cfg["train"]["imgsz"], classes=sorted(COCO_TO_COARSE))
     cid = {n: i for i, n in enumerate(COARSE)}
-    coco_map = {k: cid[v] for k, v in COCO_TO_COARSE.items()}
-    preds = {s: (np.array([coco_map[c] for c in cls], int), cf, bx) for s, (cls, cf, bx) in raw.items()}
-    uvh = np.array([cid[UVH_TO_COARSE[n]] for n in cfg["dataset"]["classes"]])
-
     out = {"weights": cfg["train"]["model"], "split": split, "images": len(stems), "imgsz": cfg["train"]["imgsz"],
-           "mapping": UVH_TO_COARSE, "coco_classes_used": {v: k for k, v in COCO_TO_COARSE.items()}}
-    for ls in label_sets:
-        gts = {s: (uvh[c], b) for s, (c, b) in load_gt(cfg, stems, ls).items()}
-        m = detection_metrics(preds, gts, COARSE)
-        mappable = [m["per_class"][c] for c in MAPPABLE if c in m["per_class"]]
-        m["mAP50_mappable_only"] = round(float(np.mean([c["AP50"] for c in mappable])), 4)
-        m["mAP50_95_mappable_only"] = round(float(np.mean([c["AP50_95"] for c in mappable])), 4)
-        out[ls] = m
+           "mapping": UVH_TO_COARSE, "coco_classes_used": {v: k for k, v in COCO_TO_COARSE.items()},
+           **coarse_metrics(cfg, raw, {k: cid[v] for k, v in COCO_TO_COARSE.items()}, stems, label_sets)}
     write_result(f"coco_context_{split}", out, cfg)
+    return out
+
+
+def finetuned_coarse(cfg: dict[str, Any], weights: Path, name: str, split: str = "val",
+                     label_sets=("mv", "st")) -> dict[str, Any]:
+    """A fine-tuned 14-class model scored in the same coarse classes as the COCO-as-is context run."""
+    stems = split_stems(cfg, split)
+    paths = [cfg["paths"]["data_root"] / "images" / f"{s}.jpg" for s in stems]
+    raw = predict(weights, paths, cfg["train"]["imgsz"])
+    cid = {n: i for i, n in enumerate(COARSE)}
+    pred_map = {i: cid[UVH_TO_COARSE[n]] for i, n in enumerate(cfg["dataset"]["classes"])}
+    out = {"weights": str(weights), "split": split, "images": len(stems),
+           **coarse_metrics(cfg, raw, pred_map, stems, label_sets)}
+    write_result(f"coarse_{name}_{split}", out, cfg)
     return out
 
 
@@ -162,11 +199,25 @@ def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: 
 
     split_stems(cfg, split, allow_test)  # sealed-test guard
     data = build_dataset(cfg, label_set, include_test=split == "test")
-    r = YOLO(str(weights)).val(
+    captured: dict[str, Any] = {k: [] for k in ("tp", "conf", "pred_cls", "target_cls")}
+
+    def grab_batch(v) -> None:  # per-image match statistics for the paired bootstrap; Ultralytics
+        st = v.metrics.stats    # clears them before on_val_end, so copy the new entries each batch
+        for k in captured:
+            captured[k].extend(st[k][len(captured[k]):])
+
+    def grab_names(v) -> None:
+        captured["stems"] = [Path(f).stem for f in v.dataloader.dataset.im_files]
+
+    model = YOLO(str(weights))
+    model.add_callback("on_val_batch_end", grab_batch)
+    model.add_callback("on_val_end", grab_names)
+    r = model.val(
         data=str(data), split=split, imgsz=cfg["train"]["imgsz"], batch=16, conf=0.001,
         iou=cfg["evaluate"]["iou_nms"], device=device or default_device(), plots=True, verbose=False,
         project=str(cfg["paths"]["runs_root"] / "eval"), name=name, exist_ok=True,
     )
+    save_per_image(captured, cfg["paths"]["runs_root"] / "eval" / name / "per_image.npz")
     rows = r.summary()
     out = {
         "weights": str(weights), "label_set": label_set, "split": split,
@@ -178,6 +229,63 @@ def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: 
                                      "instances": int(row["Instances"])} for row in rows},
     }
     write_result(f"eval_{name}", out, cfg)
+    return out
+
+
+def save_per_image(c: dict[str, Any], path: Path) -> None:
+    """Ragged per-image arrays -> flat arrays plus image indices, in one compressed file."""
+    if len(c["tp"]) != len(c["stems"]):
+        raise RuntimeError(f"per-image stats ({len(c['tp'])}) do not match images ({len(c['stems'])})")
+    n_pred = [len(x) for x in c["conf"]]
+    n_gt = [len(x) for x in c["target_cls"]]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        path, stems=np.array(c["stems"]),
+        tp=np.concatenate(c["tp"]).astype(bool).reshape(-1, len(IOUV)), conf=np.concatenate(c["conf"]),
+        pred_cls=np.concatenate(c["pred_cls"]).astype(int), pred_img=np.repeat(np.arange(len(n_pred)), n_pred),
+        target_cls=np.concatenate(c["target_cls"]).astype(int), target_img=np.repeat(np.arange(len(n_gt)), n_gt))
+
+
+def _resampled_map(z, counts: np.ndarray) -> tuple[float, float]:
+    """mAP50 and mAP50-95 with image i included counts[i] times (classes present in the resample)."""
+    from ultralytics.utils.metrics import ap_per_class
+
+    wp, wt = counts[z["pred_img"]], counts[z["target_img"]]
+    p, t = np.repeat(np.arange(len(wp)), wp), np.repeat(np.arange(len(wt)), wt)
+    *_, ap, _, _, _, _, _, _ = ap_per_class(z["tp"][p], z["conf"][p], z["pred_cls"][p], z["target_cls"][t])
+    return float(ap[:, 0].mean()), float(ap.mean())
+
+
+def paired_bootstrap(cfg: dict[str, Any], name_a: str, name_b: str, n_boot: int = 1000) -> dict[str, Any]:
+    """95% CI for (model B - model A) mAP on the same images, resampling images with replacement.
+
+    Both evaluations must cover the same images with the same labels (e.g. MV-trained vs ST-trained,
+    both scored against MV val labels). This captures evaluation-set sampling noise, not seed noise.
+    """
+    za, zb = (dict(np.load(cfg["paths"]["runs_root"] / "eval" / n / "per_image.npz")) for n in (name_a, name_b))
+    if za["stems"].tolist() != zb["stems"].tolist():
+        raise ValueError("the two evaluations cover different images or orders")
+    if not (np.array_equal(za["target_cls"], zb["target_cls"]) and np.array_equal(za["target_img"], zb["target_img"])):
+        raise ValueError("the two evaluations use different ground truth")
+    n = len(za["stems"])
+    full = np.ones(n, int)
+    point = {k: _resampled_map(z, full) for k, z in (("a", za), ("b", zb))}
+    rng = np.random.default_rng(cfg["seed"])
+    d50, d95 = [], []
+    for _ in range(n_boot):
+        counts = np.bincount(rng.integers(0, n, n), minlength=n)
+        (a50, a95), (b50, b95) = _resampled_map(za, counts), _resampled_map(zb, counts)
+        d50.append(b50 - a50)
+        d95.append(b95 - a95)
+    d50, d95 = np.array(d50), np.array(d95)
+    out = {"a": name_a, "b": name_b, "images": n, "n_boot": n_boot, "seed": cfg["seed"],
+           "a_mAP50": round(point["a"][0], 4), "a_mAP50_95": round(point["a"][1], 4),
+           "b_mAP50": round(point["b"][0], 4), "b_mAP50_95": round(point["b"][1], 4)}
+    for k, d, (pa, pb) in (("mAP50", d50, (point["a"][0], point["b"][0])), ("mAP50_95", d95, (point["a"][1], point["b"][1]))):
+        out[f"diff_{k}"] = round(pb - pa, 4)
+        out[f"diff_{k}_ci95"] = [round(float(np.percentile(d, 2.5)), 4), round(float(np.percentile(d, 97.5)), 4)]
+        out[f"share_b_better_{k}"] = round(float((d > 0).mean()), 3)
+    write_result(f"bootstrap_{name_b}_vs_{name_a}", out, cfg)
     return out
 
 

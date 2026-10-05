@@ -231,6 +231,53 @@ def pilot_summary(cfg: dict[str, Any], label_set: str = "mv") -> dict[str, Any]:
     return out
 
 
+def _diff(a: dict, b: dict) -> dict[str, list]:
+    return {k: [a.get(k), b.get(k)] for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)}
+
+
+def args_diff(cfg: dict[str, Any], run_a: str = "mv", run_b: str = "st") -> dict[str, Any]:
+    """Proof of control for the ablation: which training settings differ between the two runs.
+
+    The verdict uses each run's effective settings, i.e. the train_args stored in weights/last.pt after
+    Ultralytics resolved 'auto' values (optimizer, lr0, warmup_bias_lr). args.yaml is also diffed and
+    reported, but a resumed run rewrites args.yaml with those resolved values, so it can show
+    differences that are not real. Allowed differences: the data yaml (the label set) and bookkeeping
+    (name, save_dir, and model/resume paths pointing at a run's own last.pt after a resume).
+    Also checks that both dataset views list exactly the same train and val images.
+    """
+    import torch
+
+    runs = cfg["paths"]["runs_root"]
+    eff = [torch.load(runs / r / "weights" / "last.pt", map_location="cpu", weights_only=False)["train_args"]
+           for r in (run_a, run_b)]
+    raw = [yaml.safe_load((runs / r / "args.yaml").read_text()) for r in (run_a, run_b)]
+    diff = _diff(*eff)
+
+    def own_last(run: str, v: Any) -> bool:
+        return isinstance(v, str) and v.replace("\\", "/").endswith(f"{run}/weights/last.pt")
+
+    label, bookkeeping, unexpected = [], [], []
+    for k, (va, vb) in diff.items():
+        if k == "data":
+            label.append(k)
+        elif k in ("name", "save_dir") or (k in ("model", "resume") and (own_last(run_a, va) or own_last(run_b, vb))):
+            bookkeeping.append(k)
+        else:
+            unexpected.append(k)
+    same_images = {}
+    for s in ("train", "val"):
+        stems = [sorted(Path(x).stem for x in (cfg["paths"]["datasets_root"] / f"uvh26_{ls}" / f"{s}.txt").read_text().split())
+                 for ls in LABEL_SETS]
+        same_images[s] = stems[0] == stems[1]
+    out = {"runs": [run_a, run_b], "effective_differing_keys": diff, "label_set_keys": label,
+           "bookkeeping_keys": bookkeeping, "unexpected_keys": unexpected, "same_images": same_images,
+           "args_yaml_differing_keys": _diff(*raw),
+           "resumed": {r: bool(e.get("resume")) for r, e in zip((run_a, run_b), eff)},
+           "only_difference_is_label_set": not unexpected and all(same_images.values())}
+    write_result(f"ablation_args_diff_{run_a}_vs_{run_b}", out, cfg)
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--labels", choices=LABEL_SETS, help="training label set: the only baseline/ablation difference")

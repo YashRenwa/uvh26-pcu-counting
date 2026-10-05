@@ -74,6 +74,15 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   all 9, 0.493 / 0.326 over the 5 mappable. Freeze pilot (5 ep, no mosaic): freeze=10 0.405 mAP50-95
   at 1.72 min/ep; all trainable 0.433 at 1.87 min/ep -> freeze null. Epochs 34 (worst case 79 min with
   mosaic costed at 1.35x). Baseline run name "mv", ablation "st"; eval via evaluate.detector_metrics.
+- Phase 2 baseline "mv" (T4, 65.4 min, 34 epochs, best = last epoch, still improving): val
+  mAP50-95 0.524 / mAP50 0.615 (P 0.692, R 0.554); train 0.824 / 0.914 -> gap 0.300. Largest per-class
+  gaps on car subtypes (MUV 0.43, SUV 0.39, Sedan 0.32) and Van (0.51); smallest on Three-/Two-wheeler
+  and Bus. Run took 1.92 min/epoch: mosaic did not slow the T4 run (GPU-bound), so the budget was
+  conservative; keep 34 epochs for the ablation (fairness over peak accuracy).
+- Phase 3 code: train.args_diff compares checkpoint train_args (resumed runs rewrite args.yaml with
+  resolved 'auto' values); evaluate.detector_metrics saves per-image stats (runs/eval/<name>/
+  per_image.npz) for evaluate.paired_bootstrap. Smoke runs never take an optimizer step (2 batches
+  per epoch < nbs/batch = 8), so all smoke models equal the initial weights: test logic, not learning.
 - Colab results_dir is Drive (UVH_RESULTS_DIR = MyDrive/uvh26/results); results from Colab reach the
   repo only when the user downloads them. Python caches imported src/ modules: after a push, Colab
   needs Runtime > Restart session before re-running cells.
