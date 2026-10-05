@@ -137,38 +137,36 @@ def embed_images(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
     return emb
 
 
-def thumbnails(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
-    """64x36 grayscale thumbnails, centred and unit-norm, so a dot product is Pearson r."""
-    root = cfg["paths"]["data_root"]
+def thumbnail_features(cfg: dict[str, Any], stems: list[str]) -> tuple[np.ndarray, np.ndarray]:
+    """Two 64x36 grayscale thumbnail signals per image, centred and unit-norm (dot product = Pearson r).
 
-    def one(stem: str) -> np.ndarray:
-        g = cv2.imread(str(root / "images" / f"{stem}.jpg"), cv2.IMREAD_GRAYSCALE)
-        t = cv2.resize(g, (64, 36), interpolation=cv2.INTER_AREA).astype(np.float32).ravel()
-        t -= t.mean()
-        return t / (np.linalg.norm(t) + 1e-8)
-
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        return np.stack(list(ex.map(one, stems)))
-
-
-def gradient_thumbnails(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
-    """Sobel gradient magnitude of the 64x36 grayscale thumbnail, centred and unit-norm.
-
-    A fixed camera keeps its static edges (kerbs, buildings, poles) at the same pixels, and gradient
-    magnitude ignores brightness and colour, so frames from one camera stay correlated across
-    lighting, glare and colour-vs-IR changes that move CLIP and intensity correlation.
+    T  (intensity): tracks scene layout and background, but also lighting.
+    Tg (Sobel gradient magnitude): a fixed camera keeps its static edges at the same pixels, and
+        gradients ignore brightness and colour, so frames from one camera stay correlated across
+        lighting, glare and colour-vs-IR changes that move CLIP and intensity correlation.
+    Each image is read once; the result is cached on data_root (Drive reads are slow on Colab).
     """
     root = cfg["paths"]["data_root"]
+    cache = root / "thumbnails.npz"
+    if cache.exists():
+        z = np.load(cache)
+        if z["stems"].tolist() == list(stems):
+            return z["T"], z["Tg"]
 
-    def one(stem: str) -> np.ndarray:
+    def unit(v: np.ndarray) -> np.ndarray:
+        v = v - v.mean()
+        return v / (np.linalg.norm(v) + 1e-8)
+
+    def one(stem: str) -> tuple[np.ndarray, np.ndarray]:
         g = cv2.imread(str(root / "images" / f"{stem}.jpg"), cv2.IMREAD_GRAYSCALE)
         t = cv2.resize(g, (64, 36), interpolation=cv2.INTER_AREA).astype(np.float32)
-        m = np.hypot(cv2.Sobel(t, cv2.CV_32F, 1, 0), cv2.Sobel(t, cv2.CV_32F, 0, 1)).ravel()
-        m -= m.mean()
-        return m / (np.linalg.norm(m) + 1e-8)
+        m = np.hypot(cv2.Sobel(t, cv2.CV_32F, 1, 0), cv2.Sobel(t, cv2.CV_32F, 0, 1))
+        return unit(t.ravel()), unit(m.ravel())
 
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        return np.stack(list(ex.map(one, stems)))
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        T, Tg = map(np.stack, zip(*ex.map(one, stems)))
+    np.savez(cache, T=T, Tg=Tg, stems=np.array(stems))
+    return T, Tg
 
 
 def components(n: int, ii: np.ndarray, jj: np.ndarray) -> np.ndarray:
@@ -239,10 +237,9 @@ def load_context(cfg: dict[str, Any]) -> Context:
     stems, official = pool["stem"].tolist(), pool["official_split"].to_numpy()
     emb = embed_images(cfg, stems)
     sim = emb @ emb.T
-    T = thumbnails(cfg, stems)
-    R = T @ T.T  # full n x n thumbnail correlation matrix
-    Tg = gradient_thumbnails(cfg, stems)
-    G = Tg @ Tg.T
+    T, Tg = thumbnail_features(cfg, stems)
+    R = T @ T.T    # full n x n intensity correlation
+    G = Tg @ Tg.T  # full n x n gradient-magnitude correlation
     return Context(stems, official, sim, R, G, PairSims(sim, R, G))
 
 
@@ -501,7 +498,7 @@ def run_sweep(cfg: dict[str, Any], n_pairs: int = 20) -> pd.DataFrame:
                  "Each image's nearest neighbour by thumbnail r", out / "nn_thumb_r.png")
 
     classes, ratios = cfg["dataset"]["classes"], cfg["split"]["ratios"]
-    counts = pd.read_csv(cfg["paths"]["data_root"] / "instance_counts.csv", dtype={"stem": str})
+    counts = pd.read_csv(cfg["paths"]["labels_root"] / "instance_counts.csv", dtype={"stem": str})
     searches = {}
     for rule in short:
         labels = render_rule_grids(cfg, ctx, rule, out, n_pairs)

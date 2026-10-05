@@ -8,7 +8,10 @@ seed: 42
 # (shown on the right) so Colab can point at Google Drive without editing this file.
 paths:
   raw_root: data/raw          # UVH_RAW_ROOT: Hub downloads (JSONs, original PNGs). Colab: local disk
-  data_root: data/prepared    # UVH_DATA_ROOT: 1280 px JPEGs + YOLO labels. Colab: Drive
+  data_root: data/prepared    # UVH_DATA_ROOT: 1280 px JPEGs and caches. Colab: Drive
+  labels_root: data/labels    # UVH_LABELS_ROOT: YOLO labels + instance_counts.csv, rebuilt in seconds.
+                              # Relative = inside the repo clone, so local disk on Colab (Drive is slow
+                              # for thousands of small files)
   runs_root: runs             # UVH_RUNS_ROOT: Ultralytics runs. Colab: Drive
   weights_dir: weights        # UVH_WEIGHTS_DIR: COCO-pretrained .pt files
   datasets_root: data/datasets  # UVH_DATASETS_ROOT: Ultralytics view of the split. Colab: local disk

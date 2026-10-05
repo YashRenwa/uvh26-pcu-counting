@@ -97,7 +97,7 @@ def build_dataset(cfg: dict[str, Any], label_set: str) -> Path:
         labels.mkdir(parents=True)
         stems = sorted(split.index[split == s])
         for stem in stems:
-            shutil.copyfile(src / f"labels_{label_set}" / f"{stem}.txt", labels / f"{stem}.txt")
+            shutil.copyfile(cfg["paths"]["labels_root"] / f"labels_{label_set}" / f"{stem}.txt", labels / f"{stem}.txt")
         (view / f"{s}.txt").write_text("\n".join(str(link / f"{stem}.jpg") for stem in stems) + "\n")
 
     data = root / f"uvh26_{label_set}.yaml"

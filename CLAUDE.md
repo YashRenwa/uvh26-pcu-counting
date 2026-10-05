@@ -50,6 +50,10 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   `splits/{train,val,test}.txt`, `splits/test.sha256`. CLIP differs slightly across CPU, MPS
   and CUDA, so the notebook recomputes groups only to compare. split.py refuses to overwrite
   a split with a checksum unless `--force`, which is allowed only before Phase 2.
+- Colab storage: JPEGs, CLIP/thumbnail caches and runs live on Drive (data_root, runs_root);
+  YOLO labels and instance_counts.csv live in labels_root (data/labels inside the clone, local
+  disk) because writing thousands of small files to Drive takes most of an hour. Never put
+  per-image small files on Drive. The setup cell force-checks-out origin/<COMMIT> each run.
 - Colab: the notebook installs requirements.txt minus the lines marked `colab-skip` (keeps Colab's
   CUDA torch and avoids a forced restart) and prints every library version. Large files
   (data/, runs/, weights/) live on Google Drive via the UVH_* env vars and are git-ignored.

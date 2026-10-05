@@ -1,10 +1,14 @@
 """Resize pool images to 1280 px JPEG and write YOLO labels twice (MV and STAPLE).
 
-Outputs under data_root:
-    images/<stem>.jpg        long side = prepare.long_side, JPEG quality = prepare.jpeg_quality
-    labels_mv/<stem>.txt     YOLO format: class cx cy w h, normalised to [0, 1]
-    labels_st/<stem>.txt
-    instance_counts.csv      boxes per class, per image and label set (used by split.py)
+Outputs:
+    data_root/images/<stem>.jpg       long side = prepare.long_side, JPEG quality = prepare.jpeg_quality
+    labels_root/labels_mv/<stem>.txt  YOLO format: class cx cy w h, normalised to [0, 1]
+    labels_root/labels_st/<stem>.txt
+    labels_root/instance_counts.csv   boxes per class, per image and label set (used by split.py)
+
+The JPEGs are slow to make and live on Drive (data_root) on Colab. The labels take seconds to
+rebuild from the JSONs, so labels_root stays on local disk: thousands of small writes to Drive
+take most of an hour.
 
 YOLO coordinates are normalised, so the resize needs no separate box scaling: dividing the
 COCO pixel boxes by the original width and height gives the same numbers at any resolution.
@@ -83,10 +87,10 @@ def resize_image(src: Path, dst: Path, long_side: int, quality: int) -> int:
 
 def run(cfg: dict[str, Any], pool: pd.DataFrame, workers: int = 8) -> dict[str, Any]:
     """Prepare every pool image and both label sets; return the summary written to results."""
-    root, classes = cfg["paths"]["data_root"], cfg["dataset"]["classes"]
+    root, lab, classes = cfg["paths"]["data_root"], cfg["paths"]["labels_root"], cfg["dataset"]["classes"]
     (root / "images").mkdir(parents=True, exist_ok=True)
     for k in LABEL_SETS:
-        (root / f"labels_{k}").mkdir(parents=True, exist_ok=True)
+        (lab / f"labels_{k}").mkdir(parents=True, exist_ok=True)
 
     raw = cfg["paths"]["raw_root"]
     p = cfg["prepare"]
@@ -103,11 +107,11 @@ def run(cfg: dict[str, Any], pool: pd.DataFrame, workers: int = 8) -> dict[str, 
             if fname not in boxes[k]:
                 raise KeyError(f"{fname} has no {k.upper()} labels; the pool must use images with both")
             lines = yolo_lines(boxes[k][fname], w, h)
-            (root / f"labels_{k}" / f"{stem}.txt").write_text("\n".join(lines) + ("\n" if lines else ""))
+            (lab / f"labels_{k}" / f"{stem}.txt").write_text("\n".join(lines) + ("\n" if lines else ""))
             counts = np.bincount([int(line.split()[0]) for line in lines], minlength=len(classes))
             rows.append({"stem": stem, "official_split": split, "label_set": k, **dict(zip(classes, counts))})
     counts = pd.DataFrame(rows)
-    counts.to_csv(root / "instance_counts.csv", index=False)
+    counts.to_csv(lab / "instance_counts.csv", index=False)
 
     per_set = counts.groupby("label_set")[classes].sum()
     out_h, out_w = cv2.imread(str(jobs[0][1])).shape[:2]
@@ -136,7 +140,7 @@ def draw_labels(cfg: dict[str, Any], stem: str, out: Path) -> Path:
     panels = []
     for k in LABEL_SETS:
         im = base.copy()
-        lines = (root / f"labels_{k}" / f"{stem}.txt").read_text().split()
+        lines = (cfg["paths"]["labels_root"] / f"labels_{k}" / f"{stem}.txt").read_text().split()
         for i in range(0, len(lines), 5):
             c, cx, cy, bw, bh = int(lines[i]), *map(float, lines[i + 1:i + 5])
             p1 = (round((cx - bw / 2) * w), round((cy - bh / 2) * h))

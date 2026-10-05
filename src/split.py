@@ -174,7 +174,7 @@ def plan(cfg: dict[str, Any]) -> dict[str, Any]:
     """Seed search with the purge inside each candidate; the best candidate, not written anywhere."""
     d, ratios, classes = cfg["paths"]["splits_dir"], cfg["split"]["ratios"], cfg["dataset"]["classes"]
     groups = pd.read_csv(d / "groups.csv", dtype={"stem": str})
-    counts = pd.read_csv(cfg["paths"]["data_root"] / "instance_counts.csv", dtype={"stem": str})
+    counts = pd.read_csv(cfg["paths"]["labels_root"] / "instance_counts.csv", dtype={"stem": str})
     purge, ctx = build_purge(cfg, groups)
     search = seed_search(groups, counts, classes, ratios, cfg["seed"], cfg["split"]["seed_search"], purge)
     seed = int(search.loc[0, "seed"])
@@ -235,7 +235,7 @@ def summarise(cfg: dict[str, Any], split: pd.Series) -> dict[str, Any]:
     """Sizes, composition and class counts per split; writes results/split.json and the CSV table."""
     d, classes = cfg["paths"]["splits_dir"], cfg["dataset"]["classes"]
     groups = pd.read_csv(d / "groups.csv", dtype={"stem": str})
-    counts = pd.read_csv(cfg["paths"]["data_root"] / "instance_counts.csv", dtype={"stem": str})
+    counts = pd.read_csv(cfg["paths"]["labels_root"] / "instance_counts.csv", dtype={"stem": str})
     table = class_table(counts, split, classes)
     cfg["paths"]["results_dir"].mkdir(parents=True, exist_ok=True)
     table.to_csv(cfg["paths"]["results_dir"] / "split_class_counts.csv")

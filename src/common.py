@@ -21,6 +21,7 @@ PATH_ENV = {
     "runs_root": "UVH_RUNS_ROOT",
     "weights_dir": "UVH_WEIGHTS_DIR",
     "datasets_root": "UVH_DATASETS_ROOT",
+    "labels_root": "UVH_LABELS_ROOT",
 }
 
 
@@ -43,6 +44,7 @@ def load_config(path: str | Path = DEFAULT_CONFIG, smoke: bool = False) -> dict[
         cfg["split"]["min_test_images"] = int(cfg["split"]["min_test_images"] * scale)
         cfg["paths"].update(data_root=smoke_dir / "prepared", splits_dir=smoke_dir / "splits",
                             results_dir=smoke_dir / "results", datasets_root=smoke_dir / "datasets",
+                            labels_root=smoke_dir / "labels",
                             runs_root=smoke_dir / "runs")
         cfg["train"].update(epochs=2, pilot_epochs=3)  # CPU smoke: exercise the code, not the model
     cfg["smoke"] = smoke

@@ -50,7 +50,7 @@ def load_gt(cfg: dict[str, Any], stems: list[str], label_set: str) -> dict[str, 
     """YOLO labels per image as (class ids, normalised xyxy boxes)."""
     out = {}
     for stem in stems:
-        a = np.loadtxt(cfg["paths"]["data_root"] / f"labels_{label_set}" / f"{stem}.txt", ndmin=2)
+        a = np.loadtxt(cfg["paths"]["labels_root"] / f"labels_{label_set}" / f"{stem}.txt", ndmin=2)
         a = a.reshape(-1, 5)
         cx, cy, w, h = a[:, 1], a[:, 2], a[:, 3], a[:, 4]
         out[stem] = (a[:, 0].astype(int), np.stack([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], 1))
