@@ -70,6 +70,13 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   test images: 7 same-camera (residual leakage ~17.5%, 95% CI 8.7-32%). Official-split leakage:
   >= 30.9% (grouping), ~57% (purge criterion). Evidence and rounds: results/phase1_sweep/, phase1_split/.
   Low-confidence test classes (MV < 30 boxes): Mini-bus 21, Tempo-traveller 26, Others 2.
+- Phase 2 (2026-10-05): COCO-as-is on val (coarse classes, MV): mAP50 0.274 / mAP50-95 0.181 over
+  all 9, 0.493 / 0.326 over the 5 mappable. Freeze pilot (5 ep, no mosaic): freeze=10 0.405 mAP50-95
+  at 1.72 min/ep; all trainable 0.433 at 1.87 min/ep -> freeze null. Epochs 34 (worst case 79 min with
+  mosaic costed at 1.35x). Baseline run name "mv", ablation "st"; eval via evaluate.detector_metrics.
+- Colab results_dir is Drive (UVH_RESULTS_DIR = MyDrive/uvh26/results); results from Colab reach the
+  repo only when the user downloads them. Python caches imported src/ modules: after a push, Colab
+  needs Runtime > Restart session before re-running cells.
 - transformers 5.x: `CLIPModel.get_image_features` returns an output object, not a tensor.
   The 512-d projected embedding is `.pooler_output`.
 - Ultralytics 8.4 also ships YOLO11/YOLO26; this project uses YOLOv8 (`yolov8*.pt`) per the handout.

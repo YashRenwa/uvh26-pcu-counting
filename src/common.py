@@ -22,6 +22,7 @@ PATH_ENV = {
     "weights_dir": "UVH_WEIGHTS_DIR",
     "datasets_root": "UVH_DATASETS_ROOT",
     "labels_root": "UVH_LABELS_ROOT",
+    "results_dir": "UVH_RESULTS_DIR",
 }
 
 

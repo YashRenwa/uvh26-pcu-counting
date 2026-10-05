@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -64,8 +63,12 @@ def default_device() -> str:
     return "0" if torch.cuda.is_available() else "cpu"
 
 
-def build_dataset(cfg: dict[str, Any], label_set: str) -> Path:
-    """Materialise the Ultralytics view of the frozen split for one label set; return its data yaml."""
+def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = False) -> Path:
+    """Materialise the Ultralytics view of the frozen split for one label set; return its data yaml.
+
+    The yaml lists train and val only. include_test=True (Phase 5 evaluation only) writes a separate
+    yaml that also lists test; training never sees it.
+    """
     from src.split import load as load_split
 
     if label_set not in LABEL_SETS:
@@ -100,11 +103,11 @@ def build_dataset(cfg: dict[str, Any], label_set: str) -> Path:
             shutil.copyfile(cfg["paths"]["labels_root"] / f"labels_{label_set}" / f"{stem}.txt", labels / f"{stem}.txt")
         (view / f"{s}.txt").write_text("\n".join(str(link / f"{stem}.jpg") for stem in stems) + "\n")
 
-    data = root / f"uvh26_{label_set}.yaml"
-    data.write_text(yaml.safe_dump({
-        "path": str(view), "train": "train.txt", "val": "val.txt",
-        "names": dict(enumerate(cfg["dataset"]["classes"])),
-    }, sort_keys=False))
+    spec = {"path": str(view), "train": "train.txt", "val": "val.txt"}
+    if include_test:
+        spec["test"] = "test.txt"
+    data = root / (f"uvh26_{label_set}_with_test.yaml" if include_test else f"uvh26_{label_set}.yaml")
+    data.write_text(yaml.safe_dump({**spec, "names": dict(enumerate(cfg["dataset"]["classes"]))}, sort_keys=False))
     return data
 
 
@@ -132,7 +135,7 @@ def train(cfg: dict[str, Any], label_set: str, pilot: str | None = None, resume:
             data=str(data), epochs=t["pilot_epochs"] if pilot else t["epochs"],
             freeze=PILOTS[pilot] if pilot else t["freeze"],
             imgsz=t["imgsz"], batch=t["batch"], patience=t["patience"], workers=t["workers"], cache=t["cache"],
-            cls_remap=t["cls_remap"],
+            cls_remap=t["cls_remap"], close_mosaic=t["close_mosaic"],
             seed=cfg["seed"], deterministic=t["deterministic"], save_period=t["save_period"],
             project=str(cfg["paths"]["runs_root"]), name=name, exist_ok=True,
             device=device or default_device(), plots=True,
@@ -187,24 +190,42 @@ def run_summary(run_dir: Path) -> dict[str, Any]:
     }
 
 
-def epochs_for_budget(summary: dict[str, Any], budget_minutes: float, margin: float = 0.10) -> int:
-    """Epochs that fit the budget: (budget * (1 - margin) - first-epoch overhead) / minutes per epoch.
+def run_minutes(epochs: int, per: float, extra: float, close_mosaic: int, mosaic_slowdown: float) -> float:
+    """Worst-case minutes for a run: mosaic epochs cost mosaic_slowdown x a mosaic-free epoch."""
+    mosaic_epochs = max(epochs - close_mosaic, 0)
+    return extra + mosaic_epochs * per * mosaic_slowdown + (epochs - mosaic_epochs) * per
 
-    The margin covers setup, the final validation with best.pt, plots and Drive writes.
+
+def epochs_for_budget(summary: dict[str, Any], budget_minutes: float, close_mosaic: int,
+                      mosaic_slowdown: float, margin: float = 0.10) -> int:
+    """Largest epoch count whose worst-case time fits budget * (1 - margin).
+
+    A pilot shorter than close_mosaic runs entirely without mosaic, but a full run uses mosaic for its
+    first (epochs - close_mosaic) epochs. Mosaic costs mosaic_slowdown x per sample in the data pipeline;
+    assuming the run is data-bound (worst case) makes those epochs that much slower. The margin covers
+    setup, the final validation with best.pt, plots and Drive writes.
     """
-    per, extra = summary["minutes_per_epoch"], summary["minutes_first_epoch"] - summary["minutes_per_epoch"]
-    return max(1, math.floor((budget_minutes * (1 - margin) - max(extra, 0)) / per))
+    per = summary["minutes_per_epoch"]
+    extra = max(summary["minutes_first_epoch"] - per, 0)
+    epochs = 1
+    while run_minutes(epochs + 1, per, extra, close_mosaic, mosaic_slowdown) <= budget_minutes * (1 - margin):
+        epochs += 1
+    return epochs
 
 
 def pilot_summary(cfg: dict[str, Any], label_set: str = "mv") -> dict[str, Any]:
     """Compare the two pilot arms on val and timing; write results/pilot.json."""
     out = {"label_set": label_set, "pilot_epochs": cfg["train"]["pilot_epochs"],
            "budget_minutes": cfg["train"]["budget_minutes"], "arms": {}}
+    t = cfg["train"]
     for arm in PILOTS:
         run_dir = cfg["paths"]["runs_root"] / run_name(label_set, arm)
         if (run_dir / "results.csv").exists():
             s = run_summary(run_dir)
-            s["epochs_within_budget"] = epochs_for_budget(s, cfg["train"]["budget_minutes"])
+            s["epochs_within_budget"] = epochs_for_budget(s, t["budget_minutes"], t["close_mosaic"], t["mosaic_slowdown"])
+            extra = max(s["minutes_first_epoch"] - s["minutes_per_epoch"], 0)
+            s["worst_case_minutes_at_config_epochs"] = round(run_minutes(
+                t["epochs"], s["minutes_per_epoch"], extra, t["close_mosaic"], t["mosaic_slowdown"]), 1)
             out["arms"][arm] = s
     write_result("pilot", out, cfg)
     return out

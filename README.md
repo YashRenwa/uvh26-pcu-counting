@@ -32,6 +32,7 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requi
 .venv/bin/python -m src.train --labels mv --pilot frozen   # freeze pilot arm (also: --pilot full)
 .venv/bin/python -m src.train --pilot-summary        # minutes per epoch, epochs within budget
 .venv/bin/python -m src.train --labels mv            # baseline (ablation: --labels st)
+.venv/bin/python -m src.evaluate detector --run mv --split train   # generalisation gap (and --split val)
 ```
 
 Add `--smoke` to any of these to run on a 20-image pool with outputs under `data/smoke/`.

@@ -69,9 +69,17 @@ train:
   model: yolov8s.pt           # always loaded by explicit path from weights_dir; never a default model
   imgsz: 960
   batch: 8
-  epochs: 40                  # decide (Phase 2): set from the pilot so one run fits budget_minutes
+  # Phase 2 freeze pilot (2026-10-05, T4, 5 epochs each, MV labels, val):
+  #   freeze=10: mAP50-95 0.405, mAP50 0.495, 1.72 min/epoch | all trainable: 0.433, 0.519, 1.87 min/epoch
+  # Chosen on val mAP50-95 per the plan's rule: all layers trainable (+0.027 for +9% time per epoch).
+  freeze: null                # null = all layers trainable
+  # Largest count whose worst-case time fits budget_minutes (src.train.epochs_for_budget): the pilot ran
+  # without mosaic (5 < close_mosaic), mosaic epochs are costed at mosaic_slowdown x the pilot's 1.87 min.
+  # Identical for baseline and ablation.
+  epochs: 34
   patience: 10
-  freeze: null                # decide (Phase 2 pilot): 10 = backbone frozen, null = all trainable
+  close_mosaic: 10            # Ultralytics default, explicit: the last 10 epochs train without mosaic
+  mosaic_slowdown: 1.35       # data-pipeline cost of mosaic vs none, measured locally on the train split
   workers: 2
   save_period: 5
   deterministic: true

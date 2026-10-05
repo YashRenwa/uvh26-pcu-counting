@@ -1,21 +1,23 @@
-"""Detection evaluation outside the Ultralytics trainer.
+"""Detection evaluation: COCO-as-is context run and Ultralytics validation of trained models.
 
-Phase 2 (this file so far): the COCO-as-is context run. COCO-pretrained YOLOv8 is applied to val
-without fine-tuning, and both its predictions and the UVH-26 labels are mapped to shared coarse
-classes, following the plan:
+detector_metrics (Phases 2-5): a trained model's mAP@0.50, mAP@0.50:0.95, precision, recall and
+per-class AP on one split, scored against one label set (MV or ST). Phase 2 uses it on train and val
+for the generalisation gap; Phase 3 for the 2 x 2 trained-on x scored-against table.
+
+coco_context (Phase 2): COCO-pretrained YOLOv8 is applied to val without fine-tuning, and both its
+predictions and the UVH-26 labels are mapped to shared coarse classes, following the plan:
     Hatchback, Sedan, SUV, MUV -> car     Bus, Mini-bus -> bus     Truck, LCV -> truck
     Two-wheeler -> motorcycle             Bicycle -> bicycle
 Three-wheeler, Tempo-traveller, Van and Others have no COCO class: they stay in the ground truth as
 classes no prediction can match, so they count as misses (AP 0). mAP is reported over all coarse
-classes (the honest number) and over the five mappable ones.
-
-Matching mirrors Ultralytics' validator (greedy, IoU thresholds 0.50:0.95) and AP comes from
-ultralytics.utils.metrics.ap_per_class, so these numbers are comparable with fine-tuned runs.
+classes (the honest number) and over the five mappable ones. Matching mirrors Ultralytics' validator
+(greedy, IoU 0.50:0.95) and AP comes from ultralytics.utils.metrics.ap_per_class.
 
 The test split is sealed: every entry point refuses split="test" unless allow_test=True (Phase 5).
 
 Usage:
     python -m src.evaluate coco-context [--smoke]
+    python -m src.evaluate detector --run mv --labels mv --split val [--smoke]
 """
 
 from __future__ import annotations
@@ -146,15 +148,55 @@ def coco_context(cfg: dict[str, Any], split: str = "val", label_sets=("mv", "st"
     return out
 
 
+def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: str, name: str,
+                     allow_test: bool = False, device: str | None = None) -> dict[str, Any]:
+    """Ultralytics validation of `weights` on `split`, scored against `label_set` labels.
+
+    Same settings as Ultralytics' own validation (conf 0.001, NMS IoU evaluate.iou_nms, imgsz from the
+    config). Plots (PR curve, confusion matrix) go to runs_root/eval/<name>/; numbers to
+    results/eval_<name>.json.
+    """
+    from ultralytics import YOLO
+
+    from src.train import build_dataset, default_device
+
+    split_stems(cfg, split, allow_test)  # sealed-test guard
+    data = build_dataset(cfg, label_set, include_test=split == "test")
+    r = YOLO(str(weights)).val(
+        data=str(data), split=split, imgsz=cfg["train"]["imgsz"], batch=16, conf=0.001,
+        iou=cfg["evaluate"]["iou_nms"], device=device or default_device(), plots=True, verbose=False,
+        project=str(cfg["paths"]["runs_root"] / "eval"), name=name, exist_ok=True,
+    )
+    rows = r.summary()
+    out = {
+        "weights": str(weights), "label_set": label_set, "split": split,
+        "images": len(split_stems(cfg, split, allow_test)),
+        "mAP50": round(float(r.box.map50), 4), "mAP50_95": round(float(r.box.map), 4),
+        "precision": round(float(r.box.mp), 4), "recall": round(float(r.box.mr), 4),
+        "per_class": {row["Class"]: {"AP50": round(float(row["mAP50"]), 4), "AP50_95": round(float(row["mAP50-95"]), 4),
+                                     "P": round(float(row["Box-P"]), 4), "R": round(float(row["Box-R"]), 4),
+                                     "instances": int(row["Instances"])} for row in rows},
+    }
+    write_result(f"eval_{name}", out, cfg)
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", choices=["coco-context"])
+    ap.add_argument("what", choices=["coco-context", "detector"])
+    ap.add_argument("--run", help="detector: run name under runs_root (uses weights/best.pt)")
+    ap.add_argument("--labels", choices=["mv", "st"], default="mv", help="detector: label set to score against")
+    ap.add_argument("--split", choices=["train", "val"], default="val", help="detector: test is Phase 5 only")
     add_common_args(ap)
     args = ap.parse_args()
     cfg = load_config(args.config, smoke=args.smoke)
     if args.what == "coco-context":
         res = coco_context(cfg)
         print(json.dumps({k: v for k, v in res.items() if k != "mapping"}, indent=2))
+    else:
+        weights = cfg["paths"]["runs_root"] / args.run / "weights" / "best.pt"
+        res = detector_metrics(cfg, weights, args.labels, args.split, f"{args.run}__{args.split}__{args.labels}")
+        print(json.dumps({k: v for k, v in res.items() if k != "per_class"}, indent=2))
 
 
 if __name__ == "__main__":
