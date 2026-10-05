@@ -1,0 +1,30 @@
+{
+  "seed": 87,
+  "balance_score": 0.1561,
+  "seeds_tried": 50,
+  "link": {
+    "g_min": 0.48
+  },
+  "purge": {
+    "rules": [
+      {
+        "g_min": 0.36
+      }
+    ],
+    "unit": "group",
+    "passes": 0
+  },
+  "purge_stats": {
+    "passes_run": 3,
+    "flagged_images": 598,
+    "moved_images": 671,
+    "moved_from_val": 348,
+    "moved_from_test": 323,
+    "residual_flagged": 0
+  },
+  "ratios": {
+    "train": 0.6,
+    "val": 0.2,
+    "test": 0.2
+  }
+}

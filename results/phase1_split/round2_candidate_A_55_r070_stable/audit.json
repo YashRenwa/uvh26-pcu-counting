@@ -1,0 +1,18 @@
+{
+  "method": "same protocol as the frozen variant: 40 random fresh test images, nearest train image by g",
+  "random_n": 40,
+  "random_same_camera": 12,
+  "random_likely": 3,
+  "random_unclear": 2,
+  "residual_leakage_estimate": 0.3,
+  "residual_leakage_95ci": [
+    0.181,
+    0.454
+  ],
+  "split": {
+    "seed": 85,
+    "train": 3067,
+    "val": 436,
+    "test": 497
+  }
+}

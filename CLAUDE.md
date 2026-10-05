@@ -60,10 +60,12 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   seeds the Bus/Truck/Bicycle head rows from COCO; identical for MV and ST. CPU reruns are
   bit-identical; CUDA uses deterministic=True with warn_only, so small differences are possible.
 - src/evaluate.py refuses split="test" unless allow_test=True; only a task that says Phase 5 may set it.
-- Phase 1 status (2026-10-05): pool and grouping (rule B) decided; the split is NOT frozen. The
-  purge left same-camera pairs in test (colour vs IR, glare, low CLIP). On ~90 hand-labelled hard
-  pairs, gradient-magnitude correlation (AUC 0.97) and edge overlap (0.96) beat CLIP (0.80) and
-  intensity thumbnail r (0.71). Awaiting the user's decision on the linking/purge signal.
+- Phase 1 FROZEN (2026-10-05, seed 87): splits/ holds pool.csv, groups.csv, train/val/test.txt
+  (3,071 / 452 / 477), test.sha256 and split_info.json. Pseudo-cameras link on gradient-magnitude
+  correlation g >= 0.48 (64x36 Sobel thumbnails); purge g >= 0.36 until stable. Random audit of 40
+  test images: 7 same-camera (residual leakage ~17.5%, 95% CI 8.7-32%). Official-split leakage:
+  >= 30.9% (grouping), ~57% (purge criterion). Evidence and rounds: results/phase1_sweep/, phase1_split/.
+  Low-confidence test classes (MV < 30 boxes): Mini-bus 21, Tempo-traveller 26, Others 2.
 - transformers 5.x: `CLIPModel.get_image_features` returns an output object, not a tensor.
   The 512-d projected embedding is `.pooler_output`.
 - Ultralytics 8.4 also ships YOLO11/YOLO26; this project uses YOLOv8 (`yolov8*.pt`) per the handout.

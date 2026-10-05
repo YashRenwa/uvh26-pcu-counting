@@ -1,0 +1,80 @@
+{
+  "link": {
+    "g_min": 0.48
+  },
+  "purge": {
+    "rules": [
+      {
+        "g_min": 0.36
+      }
+    ],
+    "unit": "group",
+    "passes": 0
+  },
+  "ratios_pre_purge": {
+    "train": 0.6,
+    "val": 0.2,
+    "test": 0.2
+  },
+  "chosen_seed": 87,
+  "balance_score": 0.1561,
+  "images_post_purge": {
+    "train": 3071,
+    "val": 452,
+    "test": 477
+  },
+  "purge_stats": {
+    "passes_run": 3,
+    "flagged_images": 598,
+    "moved_images": 671,
+    "moved_from_val": 348,
+    "moved_from_test": 323,
+    "residual_flagged": 0
+  },
+  "test_size_over_seeds": {
+    "min": 371,
+    "median": 437.5,
+    "max": 478
+  },
+  "stop_test_below_min": false,
+  "leakage": {
+    "official_val_images_in_pool": 799,
+    "grouping_lower_bound": {
+      "rule": {
+        "g_min": 0.48
+      },
+      "val_images": 799,
+      "val_images_sharing_camera_with_train": 247,
+      "leakage_val_share": 0.3091,
+      "train_images_sharing_camera_with_val": 530,
+      "groups_spanning_train_and_val": 160
+    },
+    "purge_criterion_looser": {
+      "criterion": "direct pair meeting any of: g >= 0.36",
+      "val_images_with_train_partner": 459,
+      "leakage_val_share": 0.5745
+    },
+    "calibration": {
+      "cameras_assumed": 2800,
+      "frames_per_camera_in_pool": 1.429,
+      "groups": 2129,
+      "singletons_pct_of_pool": 24.0,
+      "leakage_pct_if_official_split_random_by_image": 68.1
+    }
+  },
+  "audit": {
+    "method": "40 random fresh test images, each with its most similar train image by gradient correlation g; pairs judged by eye (same camera / unclear / different); hand-labelled pairs excluded",
+    "random_n": 40,
+    "random_same_camera": 7,
+    "random_unclear": 2,
+    "residual_leakage_estimate": 0.175,
+    "residual_leakage_95ci": [
+      0.087,
+      0.32
+    ],
+    "residual_leakage_upper_if_unclear_count": 0.225,
+    "top20_worst_case_same_camera": 3,
+    "top20_worst_case_unclear": 2,
+    "note": "Frozen variant (round 3): link g >= 0.48, purge g >= 0.36 until stable, 60/20/20 pre-purge, seed 87. Random audit: 7 clear same-camera, 1 likely, 1 unclear of 40 (likely and unclear counted in 'unclear'). Top-20 worst case: 3 clear, 1 likely, 1 unclear. Variant A (round 2) under the identical protocol: 12 clear, 3 likely, 2 unclear of 40, so the lower-rate variant was frozen per the user's rule. Labels are Claude's visual judgements, not verified by the user. Test image 979664 is a near-blank grey frame."
+  }
+}

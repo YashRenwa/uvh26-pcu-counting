@@ -40,19 +40,25 @@ prepare:
 cluster:
   clip_model: openai/clip-vit-base-patch32
   batch_size: 32
-  # Link two images when CLIP cosine >= clip_min (if set) AND thumbnail r >= r_min (if set).
-  # Decided 2026-10-05 from results/phase1_sweep/ (rule B): no giant component, boundary pairs clean.
-  link: {clip_min: 0.88, r_min: 0.7}
+  # Link two images (connected components) when the 64x36 gradient-magnitude correlation g >= g_min.
+  # Decided 2026-10-05: CLIP and intensity r confused colour/IR, glare and traffic changes; on 88
+  # hand-labelled pairs g separated cameras best (AUC 0.97). 0.48 = precision 1.00 on that set and the
+  # largest group stays under 2% of the pool (65 images). Phase 1 evidence: results/phase1_*.
+  link: {g_min: 0.48}
 
 split:
   # Pre-purge targets. The purge moves ~40% of val/test into train; 60/20/20 lands near 76/12/12
   # and keeps test above min_test_images (decided 2026-10-05; 70/15/15 left test at 277-367).
   ratios: {train: 0.60, val: 0.20, test: 0.20}
   seed_search: 50             # try seeds seed..seed+49, keep the best class balance (label counts only)
-  # Purge, applied inside every candidate split: a val/test image with a direct train partner at
-  # CLIP >= clip_min AND r >= r_min is moved to train (one pass, direct pairs only). unit: group
-  # moves the image's whole pseudo-camera so groups never straddle splits; unit: image moves it alone.
-  purge: {clip_min: 0.85, r_min: 0.5, unit: group}
+  # Purge, applied inside every candidate split: a val/test image with a direct train partner meeting
+  # any rule is moved to train with its whole pseudo-camera, repeated until no such pair is left.
+  # g >= 0.36 is the lowest threshold that keeps test >= min_test_images at 60/20/20 (recall 0.725 on
+  # the labelled pairs; lower thresholds drain test because each image meets ~2,400 train images).
+  purge:
+    rules: [{g_min: 0.36}]
+    unit: group
+    passes: 0
   min_test_images: 400        # if the chosen post-purge split has fewer test images, stop and ask
   min_test_instances: 30
 

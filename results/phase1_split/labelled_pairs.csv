@@ -1,0 +1,89 @@
+stem_a,stem_b,label,source_grid,labeller,clip,r,g
+410125,496442,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8342,0.9288,0.8618
+51176,737219,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8458,0.8561,0.8923
+735815,497477,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8349,0.8131,0.5908
+858478,446698,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7409,0.7901,0.7864
+858478,663023,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.711,0.7002,0.7334
+757962,889635,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.804,0.7444,0.6116
+961271,321420,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7967,0.7355,0.6363
+621182,574064,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.9383,0.692,0.4279
+434005,106522,same,"top20 test-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.9186,0.6566,0.2924
+979706,633258,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8664,0.9057,0.493
+256336,305332,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8107,0.838,0.5573
+744667,172360,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8033,0.8179,0.6627
+923530,638554,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.808,0.8123,0.6389
+817230,937443,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8639,0.7875,0.558
+322610,249491,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8229,0.7554,0.6016
+265091,787965,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7827,0.744,0.7032
+542050,921023,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.874,0.7419,0.4445
+869210,126934,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8672,0.7302,0.5587
+749721,189833,same,"top20 val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8355,0.7291,0.4388
+277002,908636,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8473,0.6812,0.1657
+529435,925710,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8453,0.6726,0.3055
+916570,76194,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8316,0.6591,0.4087
+557692,680602,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8017,0.6381,0.6578
+125695,490480,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8417,0.658,0.6841
+407602,714351,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.8052,0.6504,0.7316
+332601,202365,same,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7471,0.6436,0.5262
+185916,382944,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.7861,0.6079,0.4688
+849516,337811,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.8488,0.5969,0.3732
+98282,161036,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.7062,0.5913,0.4281
+819865,189619,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.8458,0.5816,0.3145
+456648,534968,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.8464,0.5806,0.3072
+208395,935150,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.7576,0.5936,0.4222
+348703,998905,same,"top20 test/val-train, candidate C","claude, visual (unverified by user)",0.7671,0.5921,0.4126
+213122,540975,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8097,0.5183,0.1913
+820991,285966,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.6341,0.5425,0.231
+926642,361394,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8717,0.4914,0.476
+413762,435404,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8382,0.5715,0.3197
+530477,759928,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8977,0.4083,0.2557
+126594,184588,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.9319,0.3724,0.2131
+363244,647443,same,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8389,0.4649,0.3108
+171703,139848,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.8357,0.7636,0.1036
+109357,819865,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7091,0.7301,0.2454
+889065,73823,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.74,0.7082,0.2523
+109357,685796,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7395,0.6898,0.1956
+171703,248511,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7969,0.6619,0.0749
+96180,689485,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.7192,0.6442,-0.0378
+248868,877460,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.6825,0.7241,0.1682
+632512,979422,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.6889,0.7138,-0.0635
+109357,16360,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.6305,0.7104,0.2114
+54491,665377,different,"top20 test/val-train, 60/20/20 one-pass purge","claude, visual (unverified by user)",0.6908,0.71,0.0556
+875296,442860,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.6887,0.6883,0.0983
+540684,903566,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.6016,0.6776,0.1403
+335024,64246,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7688,0.6579,0.2465
+851669,644664,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7202,0.6558,0.1157
+347313,547441,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7482,0.6542,0.0875
+851669,715734,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7745,0.6487,0.2123
+745550,97963,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.6442,0.644,0.1077
+600655,496344,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7322,0.6432,0.0965
+470372,858537,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7477,0.6423,0.0712
+144900,901154,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7147,0.6422,0.1209
+347313,920104,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.6864,0.6394,0.0256
+915602,453229,different,"top20 test/val-train, candidate A","claude, visual (unverified by user)",0.7746,0.639,0.4633
+327044,684782,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.7985,0.6219,0.1986
+451326,151435,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.7907,0.6102,0.026
+327044,575461,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.6998,0.6087,0.009
+54491,753420,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.76,0.6027,-0.0299
+21460,650084,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.8138,0.5977,0.0392
+540684,308879,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.6889,0.5941,0.2381
+327044,876174,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.8399,0.593,0.1082
+554935,922447,different,"top20 test-train, candidate C","claude, visual (unverified by user)",0.7855,0.5875,0.0926
+817602,324539,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7582,0.4861,0.0816
+781445,226721,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7195,0.2694,0.1501
+866177,298118,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8754,0.4893,0.0743
+505895,123888,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8212,0.397,0.1963
+996249,132130,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7661,0.3509,0.1295
+618750,542971,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.821,0.5429,0.1166
+295768,552751,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8403,0.4066,0.1735
+127368,76194,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7256,0.2645,0.0872
+147444,330503,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7963,0.4422,0.0495
+19152,357188,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7501,0.4489,0.0789
+667015,447699,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.6563,0.5068,0.0113
+532788,474436,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.845,0.3291,0.1571
+460776,190664,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.8593,0.3604,0.2395
+732821,622321,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7987,0.4964,0.3563
+381702,836789,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7361,0.3473,0.131
+369379,527471,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7611,0.255,0.0802
+418970,183576,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.7503,0.3606,-0.0005
+553367,742016,different,"random20 test, candidates A and C","claude, visual (unverified by user)",0.756,0.4978,0.1948

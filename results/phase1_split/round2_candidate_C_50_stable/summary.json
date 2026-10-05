@@ -1,0 +1,45 @@
+{
+  "chosen_seed": 86,
+  "balance_score": 0.2426,
+  "images_post_purge": {
+    "train": 2988,
+    "val": 487,
+    "test": 525
+  },
+  "purge_stats": {
+    "passes_run": 3,
+    "flagged_images": 935,
+    "moved_images": 988,
+    "moved_from_val": 513,
+    "moved_from_test": 475,
+    "residual_flagged": 0
+  },
+  "test_size_over_50_seeds": {
+    "min": 433,
+    "median": 485.0,
+    "max": 547
+  },
+  "stop_test_below_min": false,
+  "leakage": {
+    "official_val_images_in_pool": 799,
+    "rule_b_lower_bound": {
+      "val_images": 799,
+      "val_images_sharing_camera_with_train": 177,
+      "leakage_val_share": 0.2215,
+      "train_images_sharing_camera_with_val": 347,
+      "groups_spanning_train_and_val": 134
+    },
+    "purge_criterion_looser": {
+      "criterion": "direct pair meeting any of: CLIP >= 0.85 AND r >= 0.5 | CLIP >= 0.8 AND r >= 0.6 | r >= 0.65",
+      "val_images_with_train_partner": 466,
+      "leakage_val_share": 0.5832
+    },
+    "calibration": {
+      "cameras_assumed": 2800,
+      "frames_per_camera_in_pool": 1.429,
+      "groups": 2129,
+      "singletons_pct_of_pool": 24.0,
+      "leakage_pct_if_official_split_random_by_image": 68.1
+    }
+  }
+}

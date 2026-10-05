@@ -59,9 +59,12 @@ class Rule:
     family: str
     clip_min: float | None
     r_min: float | None
+    g_min: float | None = None  # gradient-magnitude correlation floor
 
     @property
     def name(self) -> str:
+        if self.family == "G":
+            return f"G_g{self.g_min:.2f}"
         if self.family == "C":
             return f"C_r{self.r_min:.2f}" + ("" if self.clip_min is None else f"_clip{self.clip_min:.2f}")
         return f"{self.family}_tau{self.clip_min:.2f}" + ("" if self.r_min is None else f"_r{self.r_min:.1f}")
@@ -70,16 +73,19 @@ class Rule:
     def text(self) -> str:
         conds = [f"CLIP >= {self.clip_min:.2f}"] if self.clip_min is not None else []
         conds += [f"r >= {self.r_min:.2f}"] if self.r_min is not None else []
+        conds += [f"g >= {self.g_min:.2f}"] if self.g_min is not None else []
         return " AND ".join(conds)
 
     @staticmethod
     def from_config(cfg: dict[str, Any]) -> Rule:
         link = cfg["cluster"]["link"]
-        clip_min, r_min = link.get("clip_min"), link.get("r_min")
-        if clip_min is None and r_min is None:
-            raise ValueError("cluster.link is not decided yet: set clip_min and/or r_min in configs/base.yaml")
+        clip_min, r_min, g_min = link.get("clip_min"), link.get("r_min"), link.get("g_min")
+        if clip_min is None and r_min is None and g_min is None:
+            raise ValueError("cluster.link is not decided yet: set clip_min, r_min and/or g_min in configs/base.yaml")
+        if g_min is not None and clip_min is None and r_min is None:
+            return Rule("G", None, None, g_min)
         family = "A" if r_min is None else "C" if clip_min is None or clip_min < 0.85 else "B"
-        return Rule(family, clip_min, r_min)
+        return Rule(family, clip_min, r_min, g_min)
 
 
 # Phase 1 evidence sweep. A: CLIP only. B: CLIP AND r. C: r first, with an optional loose CLIP floor.
@@ -87,6 +93,7 @@ SWEEP_RULES = (
     [Rule("A", t, None) for t in (0.90, 0.92, 0.94, 0.96)]
     + [Rule("B", t, r) for t in (0.88, 0.90, 0.92) for r in (0.6, 0.7, 0.8)]
     + [Rule("C", f, r) for r in (0.40, 0.45, 0.50, 0.55, 0.60) for f in (None, 0.80)]
+    + [Rule("G", None, None, g) for g in (0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60)]
 )
 
 
@@ -144,6 +151,26 @@ def thumbnails(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
         return np.stack(list(ex.map(one, stems)))
 
 
+def gradient_thumbnails(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
+    """Sobel gradient magnitude of the 64x36 grayscale thumbnail, centred and unit-norm.
+
+    A fixed camera keeps its static edges (kerbs, buildings, poles) at the same pixels, and gradient
+    magnitude ignores brightness and colour, so frames from one camera stay correlated across
+    lighting, glare and colour-vs-IR changes that move CLIP and intensity correlation.
+    """
+    root = cfg["paths"]["data_root"]
+
+    def one(stem: str) -> np.ndarray:
+        g = cv2.imread(str(root / "images" / f"{stem}.jpg"), cv2.IMREAD_GRAYSCALE)
+        t = cv2.resize(g, (64, 36), interpolation=cv2.INTER_AREA).astype(np.float32)
+        m = np.hypot(cv2.Sobel(t, cv2.CV_32F, 1, 0), cv2.Sobel(t, cv2.CV_32F, 0, 1)).ravel()
+        m -= m.mean()
+        return m / (np.linalg.norm(m) + 1e-8)
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        return np.stack(list(ex.map(one, stems)))
+
+
 def components(n: int, ii: np.ndarray, jj: np.ndarray) -> np.ndarray:
     """Connected components of an undirected graph (union-find). Labels 0..G-1 by first image."""
     parent = list(range(n))
@@ -169,11 +196,12 @@ def components(n: int, ii: np.ndarray, jj: np.ndarray) -> np.ndarray:
 class PairSims:
     """Every unordered image pair (i < j): CLIP cosine s and thumbnail r, over ALL pairs (no gating)."""
 
-    def __init__(self, sim: np.ndarray, R: np.ndarray):
+    def __init__(self, sim: np.ndarray, R: np.ndarray, G: np.ndarray):
         self.n = len(sim)
         self.i, self.j = np.triu_indices(self.n, k=1)
         self.s = sim[self.i, self.j]
         self.r = R[self.i, self.j]
+        self.g = G[self.i, self.j]
 
     def linked(self, rule: Rule) -> np.ndarray:
         keep = np.ones(len(self.s), bool)
@@ -181,6 +209,8 @@ class PairSims:
             keep &= self.s >= rule.clip_min
         if rule.r_min is not None:
             keep &= self.r >= rule.r_min
+        if rule.g_min is not None:
+            keep &= self.g >= rule.g_min
         return keep
 
     def labels(self, rule: Rule) -> np.ndarray:
@@ -198,8 +228,9 @@ class PairSims:
 class Context:
     stems: list[str]
     official: np.ndarray
-    sim: np.ndarray
-    R: np.ndarray
+    sim: np.ndarray   # CLIP cosine
+    R: np.ndarray     # thumbnail intensity correlation
+    G: np.ndarray     # thumbnail gradient-magnitude correlation
     pairs: PairSims
 
 
@@ -210,7 +241,9 @@ def load_context(cfg: dict[str, Any]) -> Context:
     sim = emb @ emb.T
     T = thumbnails(cfg, stems)
     R = T @ T.T  # full n x n thumbnail correlation matrix
-    return Context(stems, official, sim, R, PairSims(sim, R))
+    Tg = gradient_thumbnails(cfg, stems)
+    G = Tg @ Tg.T
+    return Context(stems, official, sim, R, G, PairSims(sim, R, G))
 
 
 def group_stats(labels: np.ndarray) -> dict[str, Any]:
@@ -300,6 +333,8 @@ def boundary_pairs(pairs: PairSims, rule: Rule, k: int):
     k/2 that pass CLIP but fail r (highest r) + k/2 that pass r but fail CLIP (highest CLIP).
     """
     ok = pairs.linked(rule)
+    if rule.family == "G":
+        return pairs.pick(ok, pairs.g, k), pairs.pick(~ok, -pairs.g, k)
     if rule.r_min is None:
         return pairs.pick(ok, pairs.s, k), pairs.pick(~ok, -pairs.s, k)
     if rule.clip_min is None:
@@ -341,8 +376,8 @@ def cross_split_pairs(sim, official, labels, k, seed) -> list[tuple[int, int, fl
     return [out[p] for p in sorted(pick)]
 
 
-def pair_grid(cfg, stems, official, R, pairs, title, out: Path) -> Path | None:
-    """Render pairs two per row: thumbnails, CLIP cosine, thumbnail r, official splits, stems."""
+def pair_grid(cfg, stems, official, R, pairs, title, out: Path, G: np.ndarray | None = None) -> Path | None:
+    """Render pairs two per row: thumbnails, CLIP cosine, thumbnail r (and g), splits, stems."""
     if not pairs:
         return None
     root, (w, h), cap, gap = cfg["paths"]["data_root"], (384, 216), 26, 6
@@ -355,7 +390,8 @@ def pair_grid(cfg, stems, official, R, pairs, title, out: Path) -> Path | None:
     for i, j, s in pairs:
         tile = np.full((h + cap, 2 * w + gap, 3), 255, np.uint8)
         tile[cap:, :w], tile[cap:, w + gap:] = thumb(i), thumb(j)
-        text = f"cos {s:.3f}  r {R[i, j]:.2f}  {official[i]}/{official[j]}  {stems[i]} | {stems[j]}"
+        g = f"  g {G[i, j]:.2f}" if G is not None else ""
+        text = f"cos {s:.3f}  r {R[i, j]:.2f}{g}  {official[i]}/{official[j]}  {stems[i]} | {stems[j]}"
         cv2.putText(tile, text, (4, 18), font, 0.5, (11, 11, 11), 1, cv2.LINE_AA)
         tiles.append(tile)
     if len(tiles) % 2:
@@ -373,14 +409,16 @@ def render_rule_grids(cfg: dict[str, Any], ctx: Context, rule: Rule, out_dir: Pa
     """Above-boundary, below-boundary and weakest-in-group grids for one rule. Returns its labels."""
     above, below = boundary_pairs(ctx.pairs, rule, n_pairs)
     labels = ctx.pairs.labels(rule)
-    metric = ctx.sim if rule.r_min is None else ctx.R  # weakest by the score the rule links on
+    # weakest by the score the rule links on
+    metric = ctx.G if rule.family == "G" else ctx.sim if rule.r_min is None else ctx.R
     args = (cfg, ctx.stems, ctx.official, ctx.R)
     pair_grid(*args, above, f"[{rule.text}] linked pairs nearest the boundary: should be ONE camera",
-              out_dir / f"{rule.name}_above.jpg")
+              out_dir / f"{rule.name}_above.jpg", G=ctx.G)
     pair_grid(*args, below, f"[{rule.text}] rejected pairs nearest the boundary: should be DIFFERENT cameras",
-              out_dir / f"{rule.name}_below.jpg")
+              out_dir / f"{rule.name}_below.jpg", G=ctx.G)
     pair_grid(*args, weakest_in_group(ctx.sim, metric, labels, n_pairs),
-              f"[{rule.text}] weakest pair inside each group (chaining check)", out_dir / f"{rule.name}_weakest_in_group.jpg")
+              f"[{rule.text}] weakest pair inside each group (chaining check)", out_dir / f"{rule.name}_weakest_in_group.jpg",
+              G=ctx.G)
     return labels
 
 
@@ -524,10 +562,10 @@ def run(cfg: dict[str, Any], force: bool = False, n_pairs: int = 20) -> dict[str
     })
     write_result("cluster", res, cfg)
 
-    pair_grid(cfg, ctx.stems, ctx.official, ctx.R, cross_split_pairs(ctx.sim, ctx.official, labels, 10, cfg["seed"]),
-              "Same pseudo-camera, official TRAIN (left) and official VAL (right)", figs / "leak_examples.jpg")
-    plot_nn_hist(nearest_neighbour(ctx.R), "thumbnail correlation r with the most correlated other image",
-                 "Each image's nearest neighbour by thumbnail r", figs / "nn_thumb_r.png", mark=rule.r_min)
+    pair_grid(cfg, ctx.stems, ctx.official, ctx.R, cross_split_pairs(ctx.G, ctx.official, labels, 10, cfg["seed"]),
+              "Same pseudo-camera, official TRAIN (left) and official VAL (right)", figs / "leak_examples.jpg", G=ctx.G)
+    plot_nn_hist(nearest_neighbour(ctx.G), "gradient correlation g with the most correlated other image",
+                 "Each image's nearest neighbour by gradient correlation g", figs / "nn_gradient_g.png", mark=rule.g_min)
     plot_group_sizes(labels, rule, figs / "group_sizes.png")
     return res
 

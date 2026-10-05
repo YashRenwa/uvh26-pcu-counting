@@ -163,6 +163,8 @@ def build_purge(cfg: dict[str, Any], groups: pd.DataFrame):
             m &= ctx.sim >= rule["clip_min"]
         if rule.get("r_min") is not None:
             m &= ctx.R >= rule["r_min"]
+        if rule.get("g_min") is not None:
+            m &= ctx.G >= rule["g_min"]
         P |= m
     np.fill_diagonal(P, False)
     return Purge(ctx.stems, P, groups["group"].to_numpy(), p["unit"], p.get("passes", 1)), ctx
@@ -257,16 +259,56 @@ def summarise(cfg: dict[str, Any], split: pd.Series) -> dict[str, Any]:
     return summary
 
 
-def best_partner_pairs(ctx, split: np.ndarray, side: str, k: int) -> list[tuple[int, int, float]]:
-    """For each `side` image, its most correlated (by r) train image; the k highest, as (train, side, cos)."""
+def nearest_train(ctx, split: np.ndarray, side: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """For every `side` image: its most similar train image by gradient correlation g, and that g."""
     A, B = np.nonzero(split == side)[0], np.nonzero(split == "train")[0]
-    sub = ctx.R[np.ix_(A, B)]
+    sub = ctx.G[np.ix_(A, B)]
     best = sub.argmax(axis=1)
-    r = sub[np.arange(len(A)), best]
-    return [(int(B[best[o]]), int(A[o]), float(ctx.sim[A[o], B[best[o]]])) for o in np.argsort(-r, kind="stable")[:k]]
+    return A, B[best], sub[np.arange(len(A)), best]
 
 
-def preview(cfg: dict[str, Any], n_pairs: int = 20, out_name: str = "phase1_split") -> dict[str, Any]:
+def audit_pairs(ctx, split: np.ndarray, side: str, k: int, exclude: set[frozenset[str]],
+                seed: int | None = None) -> list[tuple[int, int, float]]:
+    """(train, side, CLIP) pairs for the residual-leakage audit, skipping hand-labelled pairs.
+
+    seed=None: the k most similar surviving pairs by g (worst case). seed given: k random `side`
+    images, each with its most similar train image (an unbiased estimate of residual leakage).
+    """
+    A, B, g = nearest_train(ctx, split, side)
+    fresh = np.array([frozenset((ctx.stems[a], ctx.stems[b])) not in exclude for a, b in zip(A, B)])
+    order = np.argsort(-g, kind="stable") if seed is None else np.random.default_rng(seed).permutation(len(A))
+    order = [o for o in order if fresh[o]][:k]
+    if seed is not None:
+        order = sorted(order, key=lambda o: -g[o])
+    return [(int(B[o]), int(A[o]), float(ctx.sim[A[o], B[o]])) for o in order]
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a proportion k/n."""
+    p = k / n
+    centre, half = (p + z * z / (2 * n)) / (1 + z * z / n), z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return round(float(max(0.0, centre - half)), 3), round(float(min(1.0, centre + half)), 3)
+
+
+def record_audit(cfg: dict[str, Any], same: int, unclear: int, n: int, top20_same: int, top20_unclear: int,
+                 note: str, out_name: str = "phase1_split") -> dict[str, Any]:
+    """Store the visual audit counts and the residual-leakage estimate in results/<out_name>/summary.json."""
+    path = cfg["paths"]["results_dir"] / out_name / "summary.json"
+    summary = json.loads(path.read_text())
+    summary["audit"] = {
+        "method": f"{n} random fresh test images, each with its most similar train image by gradient correlation g; "
+                  "pairs judged by eye (same camera / unclear / different); hand-labelled pairs excluded",
+        "random_n": n, "random_same_camera": same, "random_unclear": unclear,
+        "residual_leakage_estimate": round(same / n, 3), "residual_leakage_95ci": wilson(same, n),
+        "residual_leakage_upper_if_unclear_count": round((same + unclear) / n, 3),
+        "top20_worst_case_same_camera": top20_same, "top20_worst_case_unclear": top20_unclear,
+        "note": note,
+    }
+    path.write_text(json.dumps(summary, indent=2, default=str))
+    return summary["audit"]
+
+
+def preview(cfg: dict[str, Any], n_pairs: int = 20, n_audit: int = 40, out_name: str = "phase1_split") -> dict[str, Any]:
     """Plan the split and write the evidence to results/<out_name>/. Nothing goes to splits/."""
     from src.cluster import calibration, leakage, pair_grid
 
@@ -282,10 +324,10 @@ def preview(cfg: dict[str, Any], n_pairs: int = 20, out_name: str = "phase1_spli
     direct = purge.P[np.ix_(is_val, ~is_val)].any(axis=1)
     lk = {
         "official_val_images_in_pool": int(is_val.sum()),
-        "rule_b_lower_bound": leakage(official, groups["group"].to_numpy()),
+        "grouping_lower_bound": {"rule": cfg["cluster"]["link"], **leakage(official, groups["group"].to_numpy())},
         "purge_criterion_looser": {
             "criterion": "direct pair meeting any of: " + " | ".join(
-                " AND ".join(f"{k.split('_')[0].upper().replace('R', 'r')} >= {v}" for k, v in rule.items() if v is not None)
+                " AND ".join(f"{k.removesuffix('_min')} >= {v}" for k, v in rule.items() if v is not None)
                 for rule in purge_rules(cfg["split"]["purge"])),
             "val_images_with_train_partner": int(direct.sum()),
             "leakage_val_share": round(float(direct.mean()), 4),
@@ -294,11 +336,12 @@ def preview(cfg: dict[str, Any], n_pairs: int = 20, out_name: str = "phase1_spli
     }
     n_test = int((split == "test").sum())
     summary = {
+        "link": cfg["cluster"]["link"], "purge": cfg["split"]["purge"], "ratios_pre_purge": cfg["split"]["ratios"],
         "chosen_seed": p["seed"], "balance_score": float(search.loc[0, "score"]),
         "images_post_purge": {s: int((split == s).sum()) for s in SPLIT_NAMES},
         "purge_stats": p["purge_stats"],
-        "test_size_over_50_seeds": {"min": int(search["images_test"].min()), "median": float(search["images_test"].median()),
-                                    "max": int(search["images_test"].max())},
+        "test_size_over_seeds": {"min": int(search["images_test"].min()), "median": float(search["images_test"].median()),
+                                 "max": int(search["images_test"].max())},
         "stop_test_below_min": n_test < cfg["split"]["min_test_images"],
         "leakage": lk,
     }
@@ -308,10 +351,16 @@ def preview(cfg: dict[str, Any], n_pairs: int = 20, out_name: str = "phase1_spli
 
     p["table"].to_csv(out / "class_counts.csv")
     s = split.loc[ctx.stems].to_numpy()
-    for side in ("test", "val"):
-        pair_grid(cfg, ctx.stems, s, ctx.R, best_partner_pairs(ctx, s, side, n_pairs),
-                  f"Most similar {side.upper()}-TRAIN pairs that survived the purge (by r): should be DIFFERENT cameras",
-                  out / f"surviving_{side}_train_pairs.jpg")
+    labelled = out.parent / "phase1_split" / "labelled_pairs.csv"
+    exclude = ({frozenset(x) for x in pd.read_csv(labelled, dtype=str)[["stem_a", "stem_b"]].itertuples(index=False)}
+               if labelled.exists() else set())
+    args = (cfg, ctx.stems, s, ctx.R)
+    pair_grid(*args, audit_pairs(ctx, s, "test", n_pairs, exclude),
+              f"WORST CASE: {n_pairs} most similar TEST-TRAIN pairs left after the purge (by g)",
+              out / "audit_top20_test_train.jpg", G=ctx.G)
+    pair_grid(*args, audit_pairs(ctx, s, "test", n_audit, exclude, seed=cfg["seed"]),
+              f"AUDIT: {n_audit} random TEST images, each with its most similar TRAIN image (by g)",
+              out / f"audit_random{n_audit}_test_train.jpg", G=ctx.G)
     return summary
 
 

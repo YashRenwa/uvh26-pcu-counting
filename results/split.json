@@ -1,0 +1,183 @@
+{
+  "split_info": {
+    "seed": 87,
+    "balance_score": 0.1561,
+    "seeds_tried": 50,
+    "link": {
+      "g_min": 0.48
+    },
+    "purge": {
+      "rules": [
+        {
+          "g_min": 0.36
+        }
+      ],
+      "unit": "group",
+      "passes": 0
+    },
+    "purge_stats": {
+      "passes_run": 3,
+      "flagged_images": 598,
+      "moved_images": 671,
+      "moved_from_val": 348,
+      "moved_from_test": 323,
+      "residual_flagged": 0
+    },
+    "ratios": {
+      "train": 0.6,
+      "val": 0.2,
+      "test": 0.2
+    }
+  },
+  "ratios_target": {
+    "train": 0.6,
+    "val": 0.2,
+    "test": 0.2
+  },
+  "images": {
+    "train": 3071,
+    "val": 452,
+    "test": 477
+  },
+  "image_share": {
+    "train": 0.7678,
+    "val": 0.113,
+    "test": 0.1192
+  },
+  "pseudo_cameras": {
+    "train": 2318,
+    "val": 355,
+    "test": 410
+  },
+  "official_split_composition": {
+    "train": {
+      "train": 2477,
+      "val": 594
+    },
+    "val": {
+      "train": 356,
+      "val": 96
+    },
+    "test": {
+      "train": 368,
+      "val": 109
+    }
+  },
+  "classes_missing": {
+    "mv/val": [],
+    "mv/test": [],
+    "st/val": [],
+    "st/test": []
+  },
+  "classes_under_30_test_instances": {
+    "mv": {
+      "Mini-bus": 21,
+      "Tempo-traveller": 26,
+      "Others": 2
+    },
+    "st": {
+      "Mini-bus": 25,
+      "Tempo-traveller": 28,
+      "Others": 3
+    }
+  },
+  "test_sha256": "f8181d247d7e034f5810b2bb2a978e2739e5055dbc8b3240877c5caa1f667ff6",
+  "class_counts": {
+    "mv/train": {
+      "Hatchback": 3463,
+      "Sedan": 1829,
+      "SUV": 1371,
+      "MUV": 666,
+      "Bus": 1053,
+      "Truck": 1624,
+      "Three-wheeler": 5916,
+      "Two-wheeler": 17780,
+      "LCV": 2047,
+      "Mini-bus": 91,
+      "Tempo-traveller": 162,
+      "Bicycle": 475,
+      "Van": 230,
+      "Others": 21
+    },
+    "mv/val": {
+      "Hatchback": 615,
+      "Sedan": 311,
+      "SUV": 262,
+      "MUV": 141,
+      "Bus": 221,
+      "Truck": 269,
+      "Three-wheeler": 1019,
+      "Two-wheeler": 3002,
+      "LCV": 285,
+      "Mini-bus": 18,
+      "Tempo-traveller": 17,
+      "Bicycle": 50,
+      "Van": 41,
+      "Others": 2
+    },
+    "mv/test": {
+      "Hatchback": 586,
+      "Sedan": 303,
+      "SUV": 241,
+      "MUV": 131,
+      "Bus": 148,
+      "Truck": 247,
+      "Three-wheeler": 960,
+      "Two-wheeler": 2846,
+      "LCV": 343,
+      "Mini-bus": 21,
+      "Tempo-traveller": 26,
+      "Bicycle": 49,
+      "Van": 48,
+      "Others": 2
+    },
+    "st/train": {
+      "Hatchback": 3570,
+      "Sedan": 2277,
+      "SUV": 1827,
+      "MUV": 1172,
+      "Bus": 1055,
+      "Truck": 2161,
+      "Three-wheeler": 5843,
+      "Two-wheeler": 17623,
+      "LCV": 2318,
+      "Mini-bus": 138,
+      "Tempo-traveller": 180,
+      "Bicycle": 709,
+      "Van": 273,
+      "Others": 32
+    },
+    "st/val": {
+      "Hatchback": 622,
+      "Sedan": 399,
+      "SUV": 349,
+      "MUV": 224,
+      "Bus": 214,
+      "Truck": 352,
+      "Three-wheeler": 1008,
+      "Two-wheeler": 2981,
+      "LCV": 348,
+      "Mini-bus": 18,
+      "Tempo-traveller": 21,
+      "Bicycle": 97,
+      "Van": 44,
+      "Others": 4
+    },
+    "st/test": {
+      "Hatchback": 611,
+      "Sedan": 375,
+      "SUV": 304,
+      "MUV": 212,
+      "Bus": 147,
+      "Truck": 341,
+      "Three-wheeler": 939,
+      "Two-wheeler": 2819,
+      "LCV": 388,
+      "Mini-bus": 25,
+      "Tempo-traveller": 28,
+      "Bicycle": 95,
+      "Van": 63,
+      "Others": 3
+    }
+  }
+}
