@@ -63,11 +63,13 @@ def default_device() -> str:
     return "0" if torch.cuda.is_available() else "cpu"
 
 
-def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = False) -> Path:
+def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = False,
+                  place_images: bool = True) -> Path:
     """Materialise the Ultralytics view of the frozen split for one label set; return its data yaml.
 
     The yaml lists train and val only. include_test=True (Phase 5 evaluation only) writes a separate
-    yaml that also lists test; training never sees it.
+    yaml that also lists test; training never sees it. place_images=False writes the lists and labels
+    but skips copying the JPEGs (enough for checks that only read the lists).
     """
     from src.split import load as load_split
 
@@ -86,8 +88,9 @@ def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = Fals
             except OSError:  # different filesystem (Drive -> Colab local disk)
                 shutil.copyfile(src / "images" / f"{stem}.jpg", dst)
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
-        list(ex.map(place, split.index))
+    if place_images:
+        with ThreadPoolExecutor(max_workers=16) as ex:
+            list(ex.map(place, split.index))
 
     view = root / f"uvh26_{label_set}"
     shutil.rmtree(view / "labels", ignore_errors=True)  # no stale labels or label caches
@@ -264,6 +267,10 @@ def args_diff(cfg: dict[str, Any], run_a: str = "mv", run_b: str = "st") -> dict
             bookkeeping.append(k)
         else:
             unexpected.append(k)
+    # The views live on local disk and vanish with the Colab runtime; they are a deterministic function
+    # of the frozen splits/*.txt, so rebuild their lists (no image copy) and compare those.
+    for ls in LABEL_SETS:
+        build_dataset(cfg, ls, place_images=False)
     same_images = {}
     for s in ("train", "val"):
         stems = [sorted(Path(x).stem for x in (cfg["paths"]["datasets_root"] / f"uvh26_{ls}" / f"{s}.txt").read_text().split())
