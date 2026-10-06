@@ -83,6 +83,14 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   resolved 'auto' values); evaluate.detector_metrics saves per-image stats (runs/eval/<name>/
   per_image.npz) for evaluate.paired_bootstrap. Smoke runs never take an optimizer step (2 batches
   per epoch < nbs/batch = 8), so all smoke models equal the initial weights: test logic, not learning.
+- Phase 3 results (2026-10-06): ST run 66.3 min, best.pt = epoch 25 (selected on ST val), MV best =
+  epoch 34. args_diff: only data differs. 2x2 val mAP50-95 (trained -> scored): MV->MV 0.5245,
+  MV->ST 0.4923, ST->MV 0.5131, ST->ST 0.4948. Paired bootstrap ST-MV: vs ST +0.0025 [-0.013, 0.024],
+  vs MV -0.0114 [-0.030, 0.014]: no detectable difference. User decisions: headline = STAPLE column;
+  second seed skipped. Scoring labels move mAP more (~0.02-0.03) than training labels.
+- Phase 4 code: src/counts.py (one box per vehicle: top class + class-agnostic NMS; IRC:106-1990
+  factors interpolated by train ST composition; per-model threshold = min val PCU MAE vs ST labels).
+  pcu.class_map, pcu.composition, evaluate.count_reference and evaluate.conf await the user's decision.
 - Colab results_dir is Drive (UVH_RESULTS_DIR = MyDrive/uvh26/results); results from Colab reach the
   repo only when the user downloads them. Python caches imported src/ modules: after a push, Colab
   needs Runtime > Restart session before re-running cells.

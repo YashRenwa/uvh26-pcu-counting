@@ -81,6 +81,17 @@ def write_result(name: str, data: dict[str, Any], cfg: dict[str, Any] | None = N
     return out
 
 
+def file_sha256(path: Path) -> str:
+    """sha256 of a file, read in chunks (weights are ~22 MB)."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def library_versions() -> dict[str, str]:
     """Versions of every library the project uses, for the notebook's first cell."""
     import importlib.metadata as md

@@ -29,7 +29,7 @@ from typing import Any
 
 import numpy as np
 
-from src.common import add_common_args, load_config, write_result
+from src.common import add_common_args, file_sha256, load_config, write_result
 
 IOUV = np.linspace(0.5, 0.95, 10)
 COARSE = ["car", "bus", "truck", "motorcycle", "bicycle", "three-wheeler", "tempo-traveller", "van", "others"]
@@ -60,7 +60,8 @@ def load_gt(cfg: dict[str, Any], stems: list[str], label_set: str) -> dict[str, 
 
 
 def predict(weights: Path, image_paths: list[Path], imgsz: int, conf: float = 0.001, iou: float = 0.7,
-            classes: list[int] | None = None, device: str | None = None, batch: int = 16) -> dict[str, tuple[np.ndarray, ...]]:
+            classes: list[int] | None = None, device: str | None = None, batch: int = 16,
+            agnostic_nms: bool = False) -> dict[str, tuple[np.ndarray, ...]]:
     """Per image (stem): (class ids, confidences, normalised xyxy boxes). Ultralytics val-style settings.
 
     Images go to the model `batch` at a time: Ultralytics runs a list source as ONE batch, so passing
@@ -73,8 +74,8 @@ def predict(weights: Path, image_paths: list[Path], imgsz: int, conf: float = 0.
     model, out, device = YOLO(str(weights)), {}, device or default_device()
     for i in range(0, len(image_paths), batch):
         chunk = [str(p) for p in image_paths[i:i + batch]]
-        for r in model.predict(source=chunk, imgsz=imgsz, conf=conf, iou=iou, classes=classes,
-                               max_det=300, device=device, stream=True, verbose=False):
+        for r in model.predict(source=chunk, imgsz=imgsz, conf=conf, iou=iou, classes=classes, max_det=300,
+                               agnostic_nms=agnostic_nms, device=device, stream=True, verbose=False):
             b = r.boxes
             out[Path(r.path).stem] = (b.cls.cpu().numpy().astype(int), b.conf.cpu().numpy(), b.xyxyn.cpu().numpy())
     if len(out) != len(image_paths):
@@ -198,6 +199,14 @@ def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: 
     from src.train import build_dataset, default_device
 
     split_stems(cfg, split, allow_test)  # sealed-test guard
+    settings = {"weights_sha256": file_sha256(weights), "label_set": label_set, "split": split,
+                "imgsz": cfg["train"]["imgsz"], "iou_nms": cfg["evaluate"]["iou_nms"], "conf": 0.001}
+    cached = cfg["paths"]["results_dir"] / f"eval_{name}.json"
+    if cached.exists() and (cfg["paths"]["runs_root"] / "eval" / name / "per_image.npz").exists():
+        old = json.loads(cached.read_text())
+        if old.get("settings") == settings:
+            print(f"{name}: unchanged weights and settings, using the saved evaluation")
+            return old
     data = build_dataset(cfg, label_set, include_test=split == "test")
     captured: dict[str, Any] = {k: [] for k in ("tp", "conf", "pred_cls", "target_cls")}
 
@@ -220,7 +229,7 @@ def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: 
     save_per_image(captured, cfg["paths"]["runs_root"] / "eval" / name / "per_image.npz")
     rows = r.summary()
     out = {
-        "weights": str(weights), "label_set": label_set, "split": split,
+        "weights": str(weights), "label_set": label_set, "split": split, "settings": settings,
         "images": len(split_stems(cfg, split, allow_test)),
         "mAP50": round(float(r.box.map50), 4), "mAP50_95": round(float(r.box.map), 4),
         "precision": round(float(r.box.mp), 4), "recall": round(float(r.box.mr), 4),
@@ -246,14 +255,22 @@ def save_per_image(c: dict[str, Any], path: Path) -> None:
         target_cls=np.concatenate(c["target_cls"]).astype(int), target_img=np.repeat(np.arange(len(n_gt)), n_gt))
 
 
-def _resampled_map(z, counts: np.ndarray) -> tuple[float, float]:
-    """mAP50 and mAP50-95 with image i included counts[i] times (classes present in the resample)."""
+def _resampled_ap(z, counts: np.ndarray) -> tuple[float, float, dict[int, float]]:
+    """mAP50, mAP50-95 and per-class AP50-95 with image i included counts[i] times.
+
+    Averages are over the classes present in the resample, as in Ultralytics.
+    """
     from ultralytics.utils.metrics import ap_per_class
 
     wp, wt = counts[z["pred_img"]], counts[z["target_img"]]
     p, t = np.repeat(np.arange(len(wp)), wp), np.repeat(np.arange(len(wt)), wt)
-    *_, ap, _, _, _, _, _, _ = ap_per_class(z["tp"][p], z["conf"][p], z["pred_cls"][p], z["target_cls"][t])
-    return float(ap[:, 0].mean()), float(ap.mean())
+    r = ap_per_class(z["tp"][p], z["conf"][p], z["pred_cls"][p], z["target_cls"][t])
+    ap, classes = r[5], r[6]
+    return float(ap[:, 0].mean()), float(ap.mean()), {int(c): float(a) for c, a in zip(classes, ap.mean(1))}
+
+
+def _resampled_map(z, counts: np.ndarray) -> tuple[float, float]:
+    return _resampled_ap(z, counts)[:2]
 
 
 def paired_bootstrap(cfg: dict[str, Any], name_a: str, name_b: str, n_boot: int = 1000) -> dict[str, Any]:
@@ -269,15 +286,28 @@ def paired_bootstrap(cfg: dict[str, Any], name_a: str, name_b: str, n_boot: int 
         raise ValueError("the two evaluations use different ground truth")
     n = len(za["stems"])
     full = np.ones(n, int)
-    point = {k: _resampled_map(z, full) for k, z in (("a", za), ("b", zb))}
+    point = {k: _resampled_ap(z, full) for k, z in (("a", za), ("b", zb))}
     rng = np.random.default_rng(cfg["seed"])
-    d50, d95 = [], []
+    d50, d95, dcls = [], [], {c: [] for c in point["a"][2]}
     for _ in range(n_boot):
         counts = np.bincount(rng.integers(0, n, n), minlength=n)
-        (a50, a95), (b50, b95) = _resampled_map(za, counts), _resampled_map(zb, counts)
+        (a50, a95, acls), (b50, b95, bcls) = _resampled_ap(za, counts), _resampled_ap(zb, counts)
         d50.append(b50 - a50)
         d95.append(b95 - a95)
+        for c in dcls:
+            if c in acls and c in bcls:  # same ground truth, so present in both or neither
+                dcls[c].append(bcls[c] - acls[c])
     d50, d95 = np.array(d50), np.array(d95)
+    names = cfg["dataset"]["classes"]
+    per_class = {}
+    for c, d in dcls.items():
+        d = np.array(d)
+        per_class[names[c]] = {
+            "a_AP50_95": round(point["a"][2][c], 4), "b_AP50_95": round(point["b"][2][c], 4),
+            "diff": round(point["b"][2][c] - point["a"][2][c], 4),
+            "ci95": [round(float(np.percentile(d, 2.5)), 4), round(float(np.percentile(d, 97.5)), 4)],
+            "share_b_better": round(float((d > 0).mean()), 3), "resamples_with_class": len(d),
+        }
     out = {"a": name_a, "b": name_b, "images": n, "n_boot": n_boot, "seed": cfg["seed"],
            "a_mAP50": round(point["a"][0], 4), "a_mAP50_95": round(point["a"][1], 4),
            "b_mAP50": round(point["b"][0], 4), "b_mAP50_95": round(point["b"][1], 4)}
@@ -285,6 +315,7 @@ def paired_bootstrap(cfg: dict[str, Any], name_a: str, name_b: str, n_boot: int 
         out[f"diff_{k}"] = round(pb - pa, 4)
         out[f"diff_{k}_ci95"] = [round(float(np.percentile(d, 2.5)), 4), round(float(np.percentile(d, 97.5)), 4)]
         out[f"share_b_better_{k}"] = round(float((d > 0).mean()), 3)
+    out["per_class_AP50_95"] = per_class
     write_result(f"bootstrap_{name_b}_vs_{name_a}", out, cfg)
     return out
 

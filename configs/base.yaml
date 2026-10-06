@@ -92,5 +92,38 @@ train:
 evaluate:
   iou_nms: 0.7
   conf_sweep: {start: 0.05, stop: 0.70, step: 0.05}
-  conf: null                  # decide (Phase 4), frozen on val before the test set is opened
+  # Operating confidence per model, chosen on val (lowest mean absolute PCU error per image against
+  # count_reference labels) and frozen before the test set is opened. decide (Phase 4)
+  conf: {mv: null, st: null}
+  count_reference: st         # labels that define true counts; STAPLE = the headline label set. decide (Phase 4)
+  count_agnostic_nms: true    # counting: one box per vehicle (top class, class-agnostic NMS)
   n_boot: 500                 # paired bootstrap resamples (images) for MV-vs-STAPLE confidence intervals
+
+# Passenger Car Units, IRC:106-1990 (Guidelines for Capacity of Urban Roads in Plain Areas), Table 1:
+# equivalency factor at [5%, 10% and above] share of the traffic stream; linear interpolation between,
+# 5% value below 5%. Values checked against two papers that quote the table; verify against the code itself.
+pcu:
+  factors:
+    two_wheeler: [0.5, 0.75]      # motor cycle or scooter
+    car: [1.0, 1.0]               # passenger car, pick-up van
+    auto: [1.2, 2.0]              # auto-rickshaw
+    lcv: [1.4, 2.0]               # light commercial vehicle
+    truck_bus: [2.2, 3.7]         # truck or bus
+    tractor: [4.0, 5.0]           # agricultural tractor trailer
+    cycle: [0.4, 0.5]
+  class_map:                      # UVH-26 class -> IRC category. decide (Phase 4)
+    Hatchback: car
+    Sedan: car
+    SUV: car
+    MUV: car
+    Van: car                      # IRC groups pick-up vans with passenger cars
+    Bus: truck_bus
+    Truck: truck_bus
+    Mini-bus: truck_bus           # judgement call: bus (as here) or LCV
+    Tempo-traveller: lcv          # judgement call: LCV (as here) or car
+    LCV: lcv
+    Three-wheeler: auto
+    Two-wheeler: two_wheeler
+    Bicycle: cycle
+    Others: tractor               # card: agricultural, specialised or unconventional vehicles
+  composition: {split: train, label_set: st}   # traffic shares that pick the factor column. decide (Phase 4)
