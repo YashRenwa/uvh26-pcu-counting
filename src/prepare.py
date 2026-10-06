@@ -57,7 +57,12 @@ def load_labels(cfg: dict[str, Any]) -> tuple[dict[str, dict[str, list[Box]]], d
 
 
 def yolo_lines(boxes: list[Box], width: int, height: int) -> list[str]:
-    """COCO pixel boxes -> YOLO 'class cx cy w h' lines, clipped to the frame."""
+    """COCO pixel boxes -> YOLO 'class cx cy w h' lines, clipped to the frame, exact duplicates dropped.
+
+    The STAPLE JSONs contain exact duplicate boxes (~0.8%, mostly Sedan and LCV; MV has none).
+    Ultralytics drops identical label rows when it loads a dataset, so training and mAP never see them;
+    dropping them here keeps the counts and PCU totals on the same labels.
+    """
     lines = []
     for cls, x, y, w, h in boxes:
         x1, y1 = max(x, 0.0), max(y, 0.0)
@@ -66,7 +71,7 @@ def yolo_lines(boxes: list[Box], width: int, height: int) -> list[str]:
             continue
         cx, cy = (x1 + x2) / 2 / width, (y1 + y2) / 2 / height
         lines.append(f"{cls} {cx:.6f} {cy:.6f} {(x2 - x1) / width:.6f} {(y2 - y1) / height:.6f}")
-    return lines
+    return list(dict.fromkeys(lines))
 
 
 def resize_image(src: Path, dst: Path, long_side: int, quality: int) -> int:
@@ -100,13 +105,14 @@ def run(cfg: dict[str, Any], pool: pd.DataFrame, workers: int = 8) -> dict[str, 
                            total=len(jobs), desc="resize", mininterval=10))
 
     boxes, sizes = load_labels(cfg)
-    rows = []
+    rows, duplicates = [], {k: 0 for k in LABEL_SETS}
     for stem, fname, split in zip(pool["stem"], pool["file_name"], pool["official_split"]):
         w, h = sizes[fname]
         for k in LABEL_SETS:
             if fname not in boxes[k]:
                 raise KeyError(f"{fname} has no {k.upper()} labels; the pool must use images with both")
             lines = yolo_lines(boxes[k][fname], w, h)
+            duplicates[k] += len(boxes[k][fname]) - len(lines)  # (degenerate boxes would count too; there are none)
             (lab / f"labels_{k}" / f"{stem}.txt").write_text("\n".join(lines) + ("\n" if lines else ""))
             counts = np.bincount([int(line.split()[0]) for line in lines], minlength=len(classes))
             rows.append({"stem": stem, "official_split": split, "label_set": k, **dict(zip(classes, counts))})
@@ -123,7 +129,8 @@ def run(cfg: dict[str, Any], pool: pd.DataFrame, workers: int = 8) -> dict[str, 
         "output_size_wh": [out_w, out_h],
         "jpeg_total_mb": round(sum(nbytes) / 1e6, 1),
         "boxes": {k: int(per_set.loc[k].sum()) for k in LABEL_SETS},
-        "boxes_per_image": {k: round(per_set.loc[k].sum() / len(pool), 2) for k in LABEL_SETS},
+        "boxes_per_image": {k: round(float(per_set.loc[k].sum()) / len(pool), 2) for k in LABEL_SETS},
+        "exact_duplicate_boxes_dropped": duplicates,
         "class_counts": {k: {c: int(v) for c, v in per_set.loc[k].items()} for k in LABEL_SETS},
     }
     write_result("prepare", summary, cfg)

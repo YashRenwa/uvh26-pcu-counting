@@ -320,6 +320,29 @@ def paired_bootstrap(cfg: dict[str, Any], name_a: str, name_b: str, n_boot: int 
     return out
 
 
+def pr_curve(cfg: dict[str, Any], name: str) -> tuple[np.ndarray, np.ndarray, float]:
+    """Precision at IoU 0.5 on a recall grid, averaged over classes, from runs_root/eval/<name>/per_image.npz."""
+    from ultralytics.utils.metrics import ap_per_class
+
+    z = np.load(cfg["paths"]["runs_root"] / "eval" / name / "per_image.npz")
+    r = ap_per_class(z["tp"], z["conf"], z["pred_cls"], z["target_cls"])
+    ap, recall_grid, precision = r[5], r[10], np.asarray(r[11])
+    return recall_grid, precision.mean(0), float(ap[:, 0].mean())
+
+
+def plot_pr_curves(cfg: dict[str, Any], curves: dict[str, str], title: str, out: Path) -> Path:
+    """One precision-recall line per model (IoU 0.5, mean over classes); curves maps label -> eval name."""
+    from src import plotting
+
+    fig, ax = plotting.plt.subplots(figsize=(5.2, 4.2))
+    for i, (label, name) in enumerate(curves.items()):
+        rec, prec, map50 = pr_curve(cfg, name)
+        ax.plot(rec, prec, color=plotting.SERIES[i], label=f"{label} (mAP50 {map50:.3f})")
+    ax.set(title=title, xlabel="recall", ylabel="precision", xlim=(0, 1), ylim=(0, 1.02))
+    ax.legend(loc="lower left")
+    return plotting.save(fig, out)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("what", choices=["coco-context", "detector"])

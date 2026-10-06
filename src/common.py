@@ -48,6 +48,8 @@ def load_config(path: str | Path = DEFAULT_CONFIG, smoke: bool = False) -> dict[
                             labels_root=smoke_dir / "labels",
                             runs_root=smoke_dir / "runs")
         cfg["train"].update(epochs=2, pilot_epochs=3)  # CPU smoke: exercise the code, not the model
+        # placeholder thresholds so the frozen-threshold (Phase 5) code paths run on the smoke split
+        cfg["evaluate"]["conf"] = {m: 0.25 if v is None else v for m, v in cfg["evaluate"]["conf"].items()}
     cfg["smoke"] = smoke
     return cfg
 

@@ -20,11 +20,15 @@
   "jpeg_total_mb": 1431.4,
   "boxes": {
     "mv": 48932,
-    "st": 52209
+    "st": 51780
   },
   "boxes_per_image": {
     "mv": 12.23,
-    "st": 13.05
+    "st": 12.95
+  },
+  "exact_duplicate_boxes_dropped": {
+    "mv": 0,
+    "st": 429
   },
   "class_counts": {
     "mv": {
@@ -44,19 +48,19 @@
       "Others": 25
     },
     "st": {
-      "Hatchback": 4803,
-      "Sedan": 3051,
-      "SUV": 2480,
-      "MUV": 1608,
-      "Bus": 1416,
-      "Truck": 2854,
-      "Three-wheeler": 7790,
-      "Two-wheeler": 23423,
-      "LCV": 3054,
+      "Hatchback": 4765,
+      "Sedan": 2894,
+      "SUV": 2450,
+      "MUV": 1599,
+      "Bus": 1410,
+      "Truck": 2836,
+      "Three-wheeler": 7783,
+      "Two-wheeler": 23400,
+      "LCV": 2918,
       "Mini-bus": 181,
-      "Tempo-traveller": 229,
+      "Tempo-traveller": 228,
       "Bicycle": 901,
-      "Van": 380,
+      "Van": 376,
       "Others": 39
     }
   }

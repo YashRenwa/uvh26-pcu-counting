@@ -90,7 +90,15 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   second seed skipped. Scoring labels move mAP more (~0.02-0.03) than training labels.
 - Phase 4 code: src/counts.py (one box per vehicle: top class + class-agnostic NMS; IRC:106-1990
   factors interpolated by train ST composition; per-model threshold = min val PCU MAE vs ST labels).
-  pcu.class_map, pcu.composition, evaluate.count_reference and evaluate.conf await the user's decision.
+  Decided 2026-10-06: proposed class map, IRC interpolation by train ST composition, ST reference,
+  per-model threshold. evaluate.conf stays null until the sweep is rerun on deduplicated labels.
+- STAPLE JSONs contain exact duplicate boxes (429 in the pool, 0.8%, mostly Sedan/LCV; MV none).
+  Ultralytics drops them on load; prepare.py now drops them too (counts and PCU use the same labels).
+- Phase 3 extra (2026-10-06): per-class ST-MV vs ST labels: Hatchback -0.039 [-0.065,-0.009] and
+  Two-wheeler -0.012 [-0.017,-0.008] exclude 0; others do not (no multiple-comparison correction).
+  Last-epoch weights: ST-MV -0.005 [-0.021, 0.019] vs ST, -0.014 [-0.032, 0.011] vs MV.
+- Phase 5 code is in the notebook behind EVALUATE_TEST (default False); it refuses to run until
+  evaluate.conf is frozen and verifies test.sha256 first.
 - Colab results_dir is Drive (UVH_RESULTS_DIR = MyDrive/uvh26/results); results from Colab reach the
   repo only when the user downloads them. Python caches imported src/ modules: after a push, Colab
   needs Runtime > Restart session before re-running cells.

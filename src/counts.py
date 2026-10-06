@@ -147,6 +147,31 @@ def run(cfg: dict[str, Any], split: str = "val", models=MODELS) -> dict[str, Any
     return out
 
 
+def evaluate_frozen(cfg: dict[str, Any], split: str = "test", allow_test: bool = False,
+                    models=MODELS) -> dict[str, Any]:
+    """Count and PCU errors at the thresholds frozen in evaluate.conf (Phase 5: split="test", allow_test=True)."""
+    conf = cfg["evaluate"]["conf"]
+    if any(conf.get(m) is None for m in models):
+        raise RuntimeError("evaluate.conf is not frozen; choose the thresholds on val (counts.run) first")
+    classes, ref = cfg["dataset"]["classes"], cfg["evaluate"]["count_reference"]
+    fac = pcu_factors(cfg)
+    factor = np.array([fac["class_factor"][c] for c in classes])
+    stems = split_stems(cfg, split, allow_test)
+    truth = {ls: true_counts(cfg, stems, ls) for ls in ("mv", "st")}
+    out = {"split": split, "images": len(stems), "reference_labels": ref, "pcu": fac,
+           "true_pcu_per_image_mean": {ls: round(float((truth[ls] @ factor).mean()), 3) for ls in ("mv", "st")},
+           "models": {}}
+    for m in models:
+        pred = predicted_counts(count_predictions(cfg, m, split, allow_test), len(classes), conf[m])
+        out["models"][m] = {
+            "threshold": conf[m],
+            "errors": {ls: {k: round(v, 4) for k, v in error_summary(pred, truth[ls], factor).items()} for ls in ("mv", "st")},
+            "per_class_vs_reference": per_class_errors(pred, truth[ref], classes).to_dict(orient="index"),
+        }
+    write_result(f"counts_{split}", out, cfg)
+    return out
+
+
 def plot_sweep(res: dict[str, Any], path: Path) -> Path:
     """Mean absolute and mean signed PCU error per image vs confidence threshold, one line per model."""
     names = {"mv": "trained on MV", "st": "trained on STAPLE"}

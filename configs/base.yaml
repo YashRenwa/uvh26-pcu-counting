@@ -93,9 +93,10 @@ evaluate:
   iou_nms: 0.7
   conf_sweep: {start: 0.05, stop: 0.70, step: 0.05}
   # Operating confidence per model, chosen on val (lowest mean absolute PCU error per image against
-  # count_reference labels) and frozen before the test set is opened. decide (Phase 4)
+  # count_reference labels) and frozen before the test set is opened. Rule decided 2026-10-06 (per model);
+  # values pending the sweep on deduplicated labels (the 0.35 / 0.35 run counted STAPLE duplicates).
   conf: {mv: null, st: null}
-  count_reference: st         # labels that define true counts; STAPLE = the headline label set. decide (Phase 4)
+  count_reference: st         # labels that define true counts: STAPLE, the headline label set (decided 2026-10-06)
   count_agnostic_nms: true    # counting: one box per vehicle (top class, class-agnostic NMS)
   n_boot: 500                 # paired bootstrap resamples (images) for MV-vs-STAPLE confidence intervals
 
@@ -111,7 +112,7 @@ pcu:
     truck_bus: [2.2, 3.7]         # truck or bus
     tractor: [4.0, 5.0]           # agricultural tractor trailer
     cycle: [0.4, 0.5]
-  class_map:                      # UVH-26 class -> IRC category. decide (Phase 4)
+  class_map:                      # UVH-26 class -> IRC category (decided 2026-10-06)
     Hatchback: car
     Sedan: car
     SUV: car
@@ -126,4 +127,4 @@ pcu:
     Two-wheeler: two_wheeler
     Bicycle: cycle
     Others: tractor               # card: agricultural, specialised or unconventional vehicles
-  composition: {split: train, label_set: st}   # traffic shares that pick the factor column. decide (Phase 4)
+  composition: {split: train, label_set: st}   # traffic shares that pick the factor column (decided 2026-10-06)
