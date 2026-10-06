@@ -91,7 +91,8 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
 - Phase 4 code: src/counts.py (one box per vehicle: top class + class-agnostic NMS; IRC:106-1990
   factors interpolated by train ST composition; per-model threshold = min val PCU MAE vs ST labels).
   Decided 2026-10-06: proposed class map, IRC interpolation by train ST composition, ST reference,
-  per-model threshold. evaluate.conf stays null until the sweep is rerun on deduplicated labels.
+  per-model threshold. evaluate.conf FROZEN 2026-10-07: mv 0.35, st 0.35 (val, dedup labels: PCU MAE
+  2.736 / 2.708 per image = 14.8% / 14.7% of 18.48 PCU; bias -0.50 / -0.88). Do not change it.
 - STAPLE JSONs contain exact duplicate boxes (429 in the pool, 0.8%, mostly Sedan/LCV; MV none).
   Ultralytics drops them on load; prepare.py now drops them too (counts and PCU use the same labels).
 - Phase 3 extra (2026-10-06): per-class ST-MV vs ST labels: Hatchback -0.039 [-0.065,-0.009] and
