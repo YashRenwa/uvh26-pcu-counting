@@ -17,3 +17,7 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# extracted notebook images (reproducible with report/extract_outputs.py)
+report/outputs/*.png
+report/outputs/*.jpg
