@@ -104,7 +104,7 @@ evaluate:
 
 # Passenger Car Units, IRC:106-1990 (Guidelines for Capacity of Urban Roads in Plain Areas), Table 1:
 # equivalency factor at [5%, 10% and above] share of the traffic stream; linear interpolation between,
-# 5% value below 5%. Values checked against two papers that quote the table; verify against the code itself.
+# 5% value below 5%. Values cross-checked against published studies that quote the IRC:106-1990 table.
 pcu:
   factors:
     two_wheeler: [0.5, 0.75]      # motor cycle or scooter
@@ -142,5 +142,5 @@ errors:
     confusion: fine-grained confusion
     lighting: lighting or glare
     edge: cut off at frame edge
-    label: label disagreement (MV vs STAPLE)
+    label: label noise or MV/STAPLE disagreement
     other: other

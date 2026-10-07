@@ -559,7 +559,9 @@ def run(cfg: dict[str, Any], force: bool = False, n_pairs: int = 20) -> dict[str
     })
     write_result("cluster", res, cfg)
 
-    pair_grid(cfg, ctx.stems, ctx.official, ctx.R, cross_split_pairs(ctx.G, ctx.official, labels, 10, cfg["seed"]),
+    leak_pairs = [(i, j, float(ctx.sim[i, j]))  # chosen by g, captioned with the CLIP cosine like every grid
+                  for i, j, _ in cross_split_pairs(ctx.G, ctx.official, labels, 10, cfg["seed"])]
+    pair_grid(cfg, ctx.stems, ctx.official, ctx.R, leak_pairs,
               "Same pseudo-camera, official TRAIN (left) and official VAL (right)", figs / "leak_examples.jpg", G=ctx.G)
     plot_nn_hist(nearest_neighbour(ctx.G), "gradient correlation g with the most correlated other image",
                  "Each image's nearest neighbour by gradient correlation g", figs / "nn_gradient_g.png", mark=rule.g_min)
