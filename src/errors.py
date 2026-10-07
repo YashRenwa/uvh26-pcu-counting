@@ -28,6 +28,7 @@ import pandas as pd
 from src import plotting
 from src.common import add_common_args, load_config, write_result
 from src.counts import matched_split, pcu_factors, true_counts
+from src.evaluate import box_iou, load_gt
 
 ABBR = {"Hatchback": "HB", "Sedan": "SED", "SUV": "SUV", "MUV": "MUV", "Bus": "BUS", "Truck": "TRK",
         "Three-wheeler": "3W", "Two-wheeler": "2W", "LCV": "LCV", "Mini-bus": "MBUS", "Tempo-traveller": "TT",
@@ -45,6 +46,7 @@ def image_table(cfg: dict[str, Any], split: str = "test", allow_test: bool = Fal
     ims = matched_split(cfg, model, split, ls, cfg["evaluate"]["conf"][model], allow_test)
     stems = [im["stem"] for im in ims]
     n_other = true_counts(cfg, stems, other).sum(1)
+    other_boxes = load_gt(cfg, stems, other)
     rows = []
     for im, n_o in zip(ims, n_other):
         g, p, g2p, p2g = im["gt_cls"], im["pred_cls"], im["gt_to_pred"], im["pred_to_gt"]
@@ -55,6 +57,20 @@ def image_table(cfg: dict[str, Any], split: str = "test", allow_test: bool = Fal
         miss_box = im["gt_box"][~hit]
         at_edge = ((miss_box[:, 0] < EDGE) | (miss_box[:, 1] < EDGE) | (miss_box[:, 2] > 1 - EDGE)
                    | (miss_box[:, 3] > 1 - EDGE)).sum() if len(miss_box) else 0
+        # label-disagreement cues: missed vehicles the other label set does not have, and false
+        # positives the other label set does have (IoU >= 0.5, any class)
+        o_box = other_boxes[im["stem"]][1]
+        def in_other(b):
+            return (box_iou(b, o_box).max(1) >= 0.5) if len(b) and len(o_box) else np.zeros(len(b), bool)
+        fp_box = im["pred_box"][p2g < 0]
+        # occlusion cue: a missed vehicle with over 30% of its area covered by another labelled vehicle
+        gb, areas = im["gt_box"], (im["gt_box"][:, 2] - im["gt_box"][:, 0]) * (im["gt_box"][:, 3] - im["gt_box"][:, 1])
+        covered = 0
+        for gi in np.nonzero(~hit)[0]:
+            lt, rb = np.maximum(gb[gi, :2], gb[:, :2]), np.minimum(gb[gi, 2:], gb[:, 2:])
+            inter = np.clip(rb - lt, 0, None).prod(1)
+            inter[gi] = 0
+            covered += int(inter.max(initial=0) / max(areas[gi], 1e-9) > 0.3)
         img = cv2.imread(str(cfg["paths"]["data_root"] / "images" / f"{im['stem']}.jpg"))
         hsv = cv2.cvtColor(cv2.resize(img, (160, 90), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2HSV)
         rows.append({
@@ -63,6 +79,10 @@ def image_table(cfg: dict[str, Any], split: str = "test", allow_test: bool = Fal
             "missed": int((~hit).sum()), "wrong_class": int(wrong.sum()), "false_pos": int((p2g < 0).sum()),
             "pcu_from_wrong_class": float((factor[p[g2p[wrong]]] - factor[g[wrong]]).sum()) if wrong.any() else 0.0,
             "missed_small": int((miss_h < SMALL_PX).sum()), "missed_at_edge": int(at_edge),
+            "missed_median_h_px": float(np.median(miss_h)) if len(miss_h) else 0.0,
+            "missed_occluded": covered,
+            f"missed_not_in_{other}": int((~in_other(miss_box)).sum()),
+            f"fp_in_{other}": int(in_other(fp_box).sum()),
             f"boxes_{other}": int(n_o), "night_ir": bool(hsv[..., 1].mean() < 8), "brightness": float(hsv[..., 2].mean()),
         })
     t = pd.DataFrame(rows)
@@ -121,7 +141,10 @@ def render(cfg: dict[str, Any], im: dict, row: pd.Series, out: Path) -> Path:
           f"pred {row['pcu_pred']:.1f}  error {row['pcu_err']:+.1f}")
     l2 = (f"vehicles {row['vehicles_true']} -> {row['vehicles_pred']}   missed {row['missed']} "
           f"({row['missed_small']} small, {row['missed_at_edge']} at edge)   wrong class {row['wrong_class']}   "
-          f"false pos {row['false_pos']}   {other.split('_')[1].upper()} labels: {row[other]} boxes"
+          f"false pos {row['false_pos']}   {other.split('_')[1].upper()} labels: {row[other]} boxes "
+          f"(missed not in {other.split('_')[1].upper()}: {row['missed_not_in_' + other.split('_')[1]]}, "
+          f"false pos in {other.split('_')[1].upper()}: {row['fp_in_' + other.split('_')[1]]})   "
+          f"missed occluded {row['missed_occluded']}"
           f"{'   NIGHT/IR' if row['night_ir'] else ''}")
     cv2.putText(head, l1, (8, 22), font, 0.62, (255, 255, 255), 1, cv2.LINE_AA)
     cv2.putText(head, l2, (8, 47), font, 0.52, (220, 220, 220), 1, cv2.LINE_AA)
