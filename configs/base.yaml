@@ -17,6 +17,7 @@ paths:
   datasets_root: data/datasets  # UVH_DATASETS_ROOT: Ultralytics view of the split. Colab: local disk
   splits_dir: splits
   results_dir: results
+  tags_file: analysis/phase6_tags.csv   # Phase 6 cause tags, written by the user and committed
 
 dataset:
   repo_id: iisc-aim/UVH-26
@@ -129,3 +130,17 @@ pcu:
     Bicycle: cycle
     Others: tractor               # card: agricultural, specialised or unconventional vehicles
   composition: {split: train, label_set: st}   # traffic shares that pick the factor column (decided 2026-10-06)
+
+# Phase 6 error analysis on test, with the counting pipeline exactly as evaluated in Phase 5.
+errors:
+  model: mv                       # model whose failures are analysed. decide (Phase 6)
+  label_set: st                   # labels the failures are judged against (headline)
+  n_worst: 30                     # alternating: worst by |PCU error|, worst by missed vehicles
+  causes:                         # tag key -> cause (execution plan, Phase 6)
+    occlusion: dense occlusion
+    small: small or distant vehicle
+    confusion: fine-grained confusion
+    lighting: lighting or glare
+    edge: cut off at frame edge
+    label: label disagreement (MV vs STAPLE)
+    other: other

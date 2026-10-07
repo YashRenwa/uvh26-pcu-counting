@@ -68,7 +68,8 @@ def count_predictions(cfg: dict[str, Any], model: str, split: str = "val", allow
     weights = cfg["paths"]["runs_root"] / model / "weights" / "best.pt"
     ev = cfg["evaluate"]
     settings = {"weights_sha256": file_sha256(weights), "split": split, "imgsz": cfg["train"]["imgsz"],
-                "iou_nms": ev["iou_nms"], "conf_min": ev["conf_sweep"]["start"], "agnostic_nms": ev["count_agnostic_nms"]}
+                "iou_nms": ev["iou_nms"], "conf_min": ev["conf_sweep"]["start"], "agnostic_nms": ev["count_agnostic_nms"],
+                "boxes": True}
     cache = cfg["paths"]["runs_root"] / "eval" / f"{model}__{split}__counts" / "predictions.npz"
     if cache.exists():
         z = dict(np.load(cache, allow_pickle=False))
@@ -80,6 +81,7 @@ def count_predictions(cfg: dict[str, Any], model: str, split: str = "val", allow
     z = {"stems": np.array(stems), "settings": np.array(json.dumps(settings)),
          "pred_cls": np.concatenate([raw[s][0] for s in stems]).astype(int),
          "conf": np.concatenate([raw[s][1] for s in stems]).astype(np.float32),
+         "boxes": np.concatenate([raw[s][2] for s in stems]).astype(np.float32).reshape(-1, 4),  # xyxy, normalised
          "pred_img": np.repeat(np.arange(len(stems)), n)}
     cache.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(cache, **z)
@@ -92,6 +94,104 @@ def predicted_counts(z: dict, n_classes: int, threshold: float) -> np.ndarray:
     out = np.zeros((len(z["stems"]), n_classes), int)
     np.add.at(out, (z["pred_img"][keep], z["pred_cls"][keep]), 1)
     return out
+
+
+def match_image(gt_cls: np.ndarray, gt_box: np.ndarray, pred_cls: np.ndarray, pred_conf: np.ndarray,
+                pred_box: np.ndarray, iou_min: float = 0.5) -> tuple[np.ndarray, np.ndarray]:
+    """Greedy one-to-one matching of predictions to labelled vehicles, ignoring class.
+
+    Predictions are taken in decreasing confidence; each takes the unmatched label with the highest IoU,
+    if that IoU >= iou_min. Returns (gt -> pred index or -1, pred -> gt index or -1).
+    """
+    from src.evaluate import box_iou
+
+    gt_to_pred, pred_to_gt = np.full(len(gt_cls), -1), np.full(len(pred_cls), -1)
+    if len(gt_cls) and len(pred_cls):
+        iou = box_iou(gt_box, pred_box)
+        for p in np.argsort(-pred_conf, kind="stable"):
+            cand = np.where(gt_to_pred < 0, iou[:, p], -1.0)
+            g = int(cand.argmax())
+            if cand[g] >= iou_min:
+                gt_to_pred[g], pred_to_gt[p] = p, g
+    return gt_to_pred, pred_to_gt
+
+
+def matched_split(cfg: dict[str, Any], model: str, split: str, label_set: str, threshold: float,
+                  allow_test: bool = False) -> list[dict[str, Any]]:
+    """Per image: labelled vehicles, counting predictions at `threshold`, and their matching."""
+    from src.evaluate import load_gt
+
+    z = count_predictions(cfg, model, split, allow_test)
+    stems = z["stems"].tolist()
+    gts = load_gt(cfg, stems, label_set)
+    out = []
+    for i, stem in enumerate(stems):
+        k = (z["pred_img"] == i) & (z["conf"] >= threshold)
+        g_cls, g_box = gts[stem]
+        p_cls, p_conf, p_box = z["pred_cls"][k], z["conf"][k], z["boxes"][k]
+        g2p, p2g = match_image(g_cls, g_box, p_cls, p_conf, p_box)
+        out.append({"stem": stem, "gt_cls": g_cls, "gt_box": g_box, "pred_cls": p_cls, "pred_conf": p_conf,
+                    "pred_box": p_box, "gt_to_pred": g2p, "pred_to_gt": p2g})
+    return out
+
+
+def confusion(cfg: dict[str, Any], model: str, split: str, label_set: str | None = None,
+              allow_test: bool = False) -> dict[str, Any]:
+    """Confusion of the counting pipeline at the frozen threshold: one box per vehicle, IoU >= 0.5.
+
+    Rows: labelled class plus "no vehicle" (unmatched predictions). Columns: predicted class plus
+    "missed" (unmatched labels). Also aggregated to IRC categories, the level PCU cares about.
+    """
+    label_set = label_set or cfg["evaluate"]["count_reference"]
+    classes, t = cfg["dataset"]["classes"], cfg["evaluate"]["conf"][model]
+    nc = len(classes)
+    m = np.zeros((nc + 1, nc + 1), int)
+    for im in matched_split(cfg, model, split, label_set, t, allow_test):
+        for g, p in enumerate(im["gt_to_pred"]):
+            m[im["gt_cls"][g], im["pred_cls"][p] if p >= 0 else nc] += 1
+        for p in np.nonzero(im["pred_to_gt"] < 0)[0]:
+            m[nc, im["pred_cls"][p]] += 1
+    cats = list(cfg["pcu"]["factors"])
+    cat_of = [cats.index(cfg["pcu"]["class_map"][c]) for c in classes] + [len(cats)]
+    mc = np.zeros((len(cats) + 1, len(cats) + 1), int)
+    np.add.at(mc, (np.repeat(cat_of, nc + 1), np.tile(cat_of, nc + 1)), m.ravel())
+    out = {"model": model, "split": split, "label_set": label_set, "threshold": t,
+           "classes": classes, "matrix": m.tolist(), "categories": cats, "category_matrix": mc.tolist()}
+    write_result(f"confusion_{model}_{split}_{label_set}", out, cfg)
+    return out
+
+
+def plot_confusion(res: dict[str, Any], out: Path, level: str = "class") -> Path:
+    """Row-normalised heatmap (share of each labelled class), plus a bottom row of raw false-positive counts."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    names = res["classes"] if level == "class" else res["categories"]
+    m = np.array(res["matrix"] if level == "class" else res["category_matrix"], float)
+    n = len(names)
+    shares = m[:n] / np.maximum(m[:n].sum(1, keepdims=True), 1)
+    grid = np.ma.masked_invalid(np.vstack([shares, np.full((1, n + 1), np.nan)]))
+    ramp = LinearSegmentedColormap.from_list("seq_blue", ["#fcfcfb", "#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"])
+    ramp.set_bad(plotting.GRID)
+    fig, ax = plotting.plt.subplots(figsize=(8.6, 7.6) if level == "class" else (5.8, 4.9))
+    ax.imshow(grid, cmap=ramp, vmin=0, vmax=1, aspect="auto")
+    ax.grid(False)
+    fs = 7 if level == "class" else 8
+    for i in range(n):
+        for j in range(n + 1):
+            v = shares[i, j]
+            if v >= 0.005:
+                ax.text(j, i, "1" if v >= 0.995 else f"{v:.2f}".lstrip("0"), ha="center", va="center", fontsize=fs,
+                        color="white" if v > 0.55 else plotting.INK)
+    for j, v in enumerate(m[n, :n].astype(int)):
+        if v:
+            ax.text(j, n, str(v), ha="center", va="center", fontsize=fs, color=plotting.INK_2)
+    ax.set_xticks(range(n + 1), [*names, "missed"], rotation=60, ha="right")
+    ax.set_yticks(range(n + 1), [*(f"{c} ({int(m[i].sum())})" for i, c in enumerate(names)), "false positives (count)"])
+    ax.set_xlabel("predicted (counting pipeline: top class, class-agnostic NMS)")
+    ax.set_ylabel("labelled class (instances)")
+    ax.set_title(f"{'Classes' if level == 'class' else 'IRC categories'}: {res['split']}, "
+                 f"{res['model'].upper()}-trained @ {res['threshold']}, vs {res['label_set'].upper()} labels")
+    return plotting.save(fig, out)
 
 
 def thresholds(cfg: dict[str, Any]) -> list[float]:

@@ -100,6 +100,14 @@ per class and convert to Passenger Car Units for signal timing. Assignment: BITS
   Last-epoch weights: ST-MV -0.005 [-0.021, 0.019] vs ST, -0.014 [-0.032, 0.011] vs MV.
 - Phase 5 code is in the notebook behind EVALUATE_TEST (default False); it refuses to run until
   evaluate.conf is frozen and verifies test.sha256 first.
+- Ultralytics' confusion matrix is unusable here: built from the mAP predictions (conf 0.001,
+  multi-label NMS, IoU ties broken arbitrarily), it overstates class confusion. The report uses
+  counts.confusion: counting pipeline at the frozen threshold, IoU >= 0.5, class-agnostic matching,
+  by class and by IRC category. Counting predictions now also store boxes.
+- Phase 6 code: src/errors.py ranks test images by |PCU error| and missed vehicles (alternating),
+  renders the 30 worst with outcome colours, writes a tag template; the user's tags go in
+  analysis/phase6_tags.csv (rank, stem, cause key, note; keys in config errors.causes) and are committed.
+  errors.model (mv) awaits the user's decision.
 - Colab results_dir is Drive (UVH_RESULTS_DIR = MyDrive/uvh26/results); results from Colab reach the
   repo only when the user downloads them. Python caches imported src/ modules: after a push, Colab
   needs Runtime > Restart session before re-running cells.

@@ -34,6 +34,7 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requi
 .venv/bin/python -m src.train --labels mv            # baseline (ablation: --labels st)
 .venv/bin/python -m src.evaluate detector --run mv --split train   # generalisation gap (and --split val)
 .venv/bin/python -m src.counts               # Phase 4: PCU factors, counts, threshold sweep on val
+.venv/bin/python -m src.errors               # Phase 6: worst test images, rendered for tagging
 ```
 
 Add `--smoke` to any of these to run on a 20-image pool with outputs under `data/smoke/`.
@@ -56,10 +57,11 @@ src/
   train.py         Ultralytics dataset view, YOLOv8 training, freeze pilot, epoch budget
   evaluate.py      COCO context, Ultralytics val, 2x2, paired bootstrap
   counts.py        per-image counts, IRC PCU factors, confidence threshold sweep (Phase 4)
-  errors.py        failure mining and image grids                             (Phase 6)
+  errors.py        failure mining on test, rendered worst images, cause tally (Phase 6)
 notebooks/         the submission notebook
 splits/            pool.csv, groups.csv, train/val/test.txt, test.sha256 (the frozen split)
 results/           small JSON/CSV outputs quoted in the report
+analysis/          hand-made inputs: Phase 6 cause tags
 ```
 
 Images, prepared data, weights and Ultralytics `runs/` are git-ignored and live on Google Drive.
