@@ -49,7 +49,8 @@ def image_table(cfg: dict[str, Any], split: str = "test", allow_test: bool = Fal
     for im, n_o in zip(ims, n_other):
         g, p, g2p, p2g = im["gt_cls"], im["pred_cls"], im["gt_to_pred"], im["pred_to_gt"]
         hit = g2p >= 0
-        wrong = hit & (p[np.where(hit, g2p, 0)] != g)
+        wrong = np.zeros(len(g), bool)  # matched, but to a different class (safe when there are no predictions)
+        wrong[hit] = p[g2p[hit]] != g[hit]
         miss_h = (im["gt_box"][~hit, 3] - im["gt_box"][~hit, 1]) * 720
         miss_box = im["gt_box"][~hit]
         at_edge = ((miss_box[:, 0] < EDGE) | (miss_box[:, 1] < EDGE) | (miss_box[:, 2] > 1 - EDGE)
@@ -76,7 +77,7 @@ def select_worst(t: pd.DataFrame, n: int) -> pd.DataFrame:
     by_miss = t.sort_values(["missed", "abs_pcu_err"], ascending=False)["stem"].tolist()
     picked: dict[str, str] = {}
     i = 0
-    while len(picked) < min(n, len(t)):
+    while len(picked) < n and i < len(t):
         for src, lst in (("PCU error", by_pcu), ("missed", by_miss)):
             if i < len(lst) and len(picked) < n:
                 s = lst[i]
