@@ -44,16 +44,26 @@ counts are weighted by IRC:106-1990 PCU factors.
 
 ### Colab (how the submitted results were produced)
 
-1. Open `notebooks/uvh26_signal_counting.ipynb` in Colab and choose a **T4 GPU** runtime.
-2. Add Colab secrets (key icon in the sidebar):
-   - `GITHUB_TOKEN`: needed only while this repository is private, so the setup cell can clone it.
-   - `HF_TOKEN` (optional): avoids anonymous Hugging Face rate limits during the image download.
+1. [Open the notebook in Colab](https://colab.research.google.com/github/YashRenwa/uvh26-pcu-counting/blob/main/notebooks/uvh26_signal_counting.ipynb)
+   and choose a **T4 GPU** runtime.
+2. No secrets are required: the repo and the dataset are public. An `HF_TOKEN` Colab secret (key icon in
+   the sidebar) is optional and only avoids anonymous Hugging Face rate limits during the image download.
 3. Set the run switches in the first code cell:
    - `RUN_TRAINING`: `True` trains both models (about 65 minutes each on a T4) and reuses any run already
      finished on Drive; `False` evaluates the weights saved under `DRIVE_ROOT/runs`.
    - `EVALUATE_TEST`: `True` opens the sealed test set (Phase 5 onward).
 4. Run all. The setup cell mounts Google Drive, clones this repo at the pinned commit `ee0e619`, installs
    `requirements.txt` (keeping Colab's CUDA torch) and prints the seed and every library version.
+
+### Quick check with the trained models (no training)
+
+The prepared images and both training runs are in a view-only Google Drive folder:
+[uvh26 on Google Drive](https://drive.google.com/drive/folders/1waD4GDFYlR4HbmIuBnGYQQRfzcw3B28O?usp=sharing)
+(`prepared/` 4,000 JPEGs and caches, `runs/` the MV and STAPLE runs and the two freeze-pilot arms,
+`weights/` COCO-pretrained YOLOv8s). The notebook's "How to run or check" cell gives the exact steps:
+add a shortcut to the folder in your My Drive, set `RUN_TRAINING = False` and `DRIVE_ROOT = "/content/uvh26"`,
+and paste a cell that copies the folder to Colab's local disk. Saved evaluations are not copied, so every
+number is recomputed from the trained weights.
 
 Later commits on `main` add only documentation (this README, docstrings), the report and the notebook
 with outputs. The executable code, `configs/` and `splits/` are unchanged since `ee0e619`.
@@ -94,6 +104,9 @@ The dataset is **public**: no account, request form or licence click-through is 
   `python -m src.download pool` (or the notebook's data cell) fetches exactly these files.
 - **Split used for every number:** [`splits/`](splits/) holds the pool, the pseudo-camera groups and the
   train/val/test lists (3,071 / 452 / 477 frames).
+- **Already-prepared copy and trained models:** the
+  [shared Drive folder](https://drive.google.com/drive/folders/1waD4GDFYlR4HbmIuBnGYQQRfzcw3B28O?usp=sharing)
+  (view-only) holds the 4,000 images resized to 1280 px and both trained runs; see "Quick check" above.
 
 Where the Hub differs from the dataset card:
 - Images are under `UVH-26-{Train,Val}/data/NNN/`, not `images/NNN/`.
