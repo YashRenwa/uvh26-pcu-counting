@@ -43,6 +43,7 @@ MAPPABLE = ["car", "bus", "truck", "motorcycle", "bicycle"]
 
 
 def split_stems(cfg: dict[str, Any], split: str, allow_test: bool = False) -> list[str]:
+    """Image stems of one split; the test split needs allow_test=True (Phase 5 onward)."""
     if split == "test" and not allow_test:
         raise PermissionError("the test split is sealed until Phase 5 (allow_test=True)")
     return (cfg["paths"]["splits_dir"] / f"{split}.txt").read_text().split()
@@ -210,12 +211,17 @@ def detector_metrics(cfg: dict[str, Any], weights: Path, label_set: str, split: 
     data = build_dataset(cfg, label_set, include_test=split == "test")
     captured: dict[str, Any] = {k: [] for k in ("tp", "conf", "pred_cls", "target_cls")}
 
-    def grab_batch(v) -> None:  # per-image match statistics for the paired bootstrap; Ultralytics
-        st = v.metrics.stats    # clears them before on_val_end, so copy the new entries each batch
+    def grab_batch(v) -> None:
+        """Validator callback: copy this batch's new per-image match statistics (for the paired bootstrap).
+
+        Ultralytics clears metrics.stats before on_val_end, so the new entries are copied every batch.
+        """
+        st = v.metrics.stats
         for k in captured:
             captured[k].extend(st[k][len(captured[k]):])
 
     def grab_names(v) -> None:
+        """Validator callback: record the image stems in dataloader order."""
         captured["stems"] = [Path(f).stem for f in v.dataloader.dataset.im_files]
 
     model = YOLO(str(weights))
@@ -344,6 +350,7 @@ def plot_pr_curves(cfg: dict[str, Any], curves: dict[str, str], title: str, out:
 
 
 def main() -> None:
+    """CLI: `python -m src.evaluate coco-context` or `detector --run <name> --split {train,val}`."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("what", choices=["coco-context", "detector"])
     ap.add_argument("--run", help="detector: run name under runs_root (uses weights/best.pt)")

@@ -195,6 +195,7 @@ def plot_confusion(res: dict[str, Any], out: Path, level: str = "class") -> Path
 
 
 def thresholds(cfg: dict[str, Any]) -> list[float]:
+    """Confidence thresholds swept on val, from evaluate.conf_sweep (start, stop, step)."""
     s = cfg["evaluate"]["conf_sweep"]
     return [round(float(t), 2) for t in np.arange(s["start"], s["stop"] + 1e-9, s["step"])]
 
@@ -209,6 +210,7 @@ def error_summary(pred: np.ndarray, true: np.ndarray, factor: np.ndarray) -> dic
 
 
 def per_class_errors(pred: np.ndarray, true: np.ndarray, classes: list[str]) -> pd.DataFrame:
+    """Per-class count MAE, signed bias and totals for (images x classes) predicted and true counts."""
     err = pred - true
     return pd.DataFrame({"true per image": true.mean(0), "count MAE": np.abs(err).mean(0),
                          "signed bias": err.mean(0), "true total": true.sum(0), "predicted total": pred.sum(0)},
@@ -308,6 +310,7 @@ def plot_sweep(res: dict[str, Any], path: Path) -> Path:
 
 
 def main() -> None:
+    """CLI: `python -m src.counts` runs Phase 4 and prints the PCU factors and chosen thresholds."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap)
     args = ap.parse_args()

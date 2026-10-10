@@ -61,6 +61,7 @@ def image_table(cfg: dict[str, Any], split: str = "test", allow_test: bool = Fal
         # positives the other label set does have (IoU >= 0.5, any class)
         o_box = other_boxes[im["stem"]][1]
         def in_other(b):
+            """Mask: which boxes in b overlap a box of the other label set at IoU >= 0.5."""
             return (box_iou(b, o_box).max(1) >= 0.5) if len(b) and len(o_box) else np.zeros(len(b), bool)
         fp_box = im["pred_box"][p2g < 0]
         # occlusion cue: a missed vehicle with over 30% of its area covered by another labelled vehicle
@@ -117,6 +118,7 @@ def render(cfg: dict[str, Any], im: dict, row: pd.Series, out: Path) -> Path:
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     def box(b, colour, text, thick=2):
+        """Draw one box with a filled caption tag."""
         x1, y1, x2, y2 = (b * [w, h, w, h]).round().astype(int)
         cv2.rectangle(img, (x1, y1), (x2, y2), colour, thick)
         (tw, th), _ = cv2.getTextSize(text, font, 0.42, 1)
@@ -202,6 +204,7 @@ def tally(cfg: dict[str, Any], split: str = "test") -> dict[str, Any] | None:
 
 
 def main() -> None:
+    """CLI: `python -m src.errors` ranks and renders the worst test images (Phase 6)."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(ap)
     args = ap.parse_args()

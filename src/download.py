@@ -135,6 +135,7 @@ def download_images(cfg: dict[str, Any], repo_paths: list[str], workers: int = 1
     todo = [p for p in repo_paths if not (raw / p).exists()]
 
     def fetch(p: str) -> None:
+        """Download one file from the pinned Hub revision, retrying with exponential back-off."""
         for attempt in range(5):
             try:
                 hf_hub_download(**_hub_args(cfg), filename=p, local_dir=raw)
@@ -159,6 +160,7 @@ def download_pool(cfg: dict[str, Any], pool: pd.DataFrame, workers: int = 16) ->
 
 
 def main() -> None:
+    """CLI: `python -m src.download {annotations,index,pool}`."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("what", choices=["annotations", "index", "pool"])
     ap.add_argument("--force", action="store_true", help="resample the pool even if pool.csv exists")

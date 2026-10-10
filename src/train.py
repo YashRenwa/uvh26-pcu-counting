@@ -58,6 +58,7 @@ def weights_path(cfg: dict[str, Any]) -> Path:
 
 
 def default_device() -> str:
+    """Ultralytics device string: "0" (first GPU) if CUDA is available, else "cpu"."""
     import torch
 
     return "0" if torch.cuda.is_available() else "cpu"
@@ -81,6 +82,7 @@ def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = Fals
     images.mkdir(parents=True, exist_ok=True)
 
     def place(stem: str) -> None:
+        """Hard-link (or copy across filesystems) one prepared JPEG into the dataset view."""
         dst = images / f"{stem}.jpg"
         if not dst.exists():
             try:
@@ -115,6 +117,7 @@ def build_dataset(cfg: dict[str, Any], label_set: str, include_test: bool = Fals
 
 
 def run_name(label_set: str, pilot: str | None = None) -> str:
+    """Run folder name: "mv" or "st" for full runs, "pilot_<arm>_<labels>" for the freeze pilot."""
     return f"pilot_{pilot}_{label_set}" if pilot else label_set
 
 
@@ -257,6 +260,7 @@ def args_diff(cfg: dict[str, Any], run_a: str = "mv", run_b: str = "st") -> dict
     diff = _diff(*eff)
 
     def own_last(run: str, v: Any) -> bool:
+        """True if v is the path of this run's own last.pt (expected to differ after a resume)."""
         return isinstance(v, str) and v.replace("\\", "/").endswith(f"{run}/weights/last.pt")
 
     label, bookkeeping, unexpected = [], [], []
@@ -286,6 +290,7 @@ def args_diff(cfg: dict[str, Any], run_a: str = "mv", run_b: str = "st") -> dict
 
 
 def main() -> None:
+    """CLI: `python -m src.train --labels {mv,st}` (full run), `--pilot {frozen,full}` or `--pilot-summary`."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--labels", choices=LABEL_SETS, help="training label set: the only baseline/ablation difference")
     ap.add_argument("--pilot", choices=list(PILOTS), help="Phase 2 freeze pilot arm")

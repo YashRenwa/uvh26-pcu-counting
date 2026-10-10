@@ -164,6 +164,7 @@ def draw_labels(cfg: dict[str, Any], stem: str, out: Path) -> Path:
 
 
 def main() -> None:
+    """CLI: `python -m src.prepare` resizes the pool, writes both label sets and a label check figure."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--workers", type=int, default=8)
     add_common_args(ap)

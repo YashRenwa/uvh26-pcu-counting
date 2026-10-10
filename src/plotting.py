@@ -34,6 +34,7 @@ plt.rcParams.update({
 
 
 def save(fig: plt.Figure, path: Path) -> Path:
+    """Save a figure (creating its folder), close it and return the path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path)
     plt.close(fig)

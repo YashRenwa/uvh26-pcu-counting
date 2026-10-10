@@ -63,6 +63,7 @@ class Rule:
 
     @property
     def name(self) -> str:
+        """Short identifier used in file names, e.g. "G_g0.48"."""
         if self.family == "G":
             return f"G_g{self.g_min:.2f}"
         if self.family == "C":
@@ -71,6 +72,7 @@ class Rule:
 
     @property
     def text(self) -> str:
+        """Human-readable linking condition, e.g. "g >= 0.48"."""
         conds = [f"CLIP >= {self.clip_min:.2f}"] if self.clip_min is not None else []
         conds += [f"r >= {self.r_min:.2f}"] if self.r_min is not None else []
         conds += [f"g >= {self.g_min:.2f}"] if self.g_min is not None else []
@@ -78,6 +80,7 @@ class Rule:
 
     @staticmethod
     def from_config(cfg: dict[str, Any]) -> Rule:
+        """The rule decided in configs/base.yaml (cluster.link); raises until a threshold is set."""
         link = cfg["cluster"]["link"]
         clip_min, r_min, g_min = link.get("clip_min"), link.get("r_min"), link.get("g_min")
         if clip_min is None and r_min is None and g_min is None:
@@ -98,6 +101,7 @@ SWEEP_RULES = (
 
 
 def device() -> str:
+    """Torch device for the CLIP pass: CUDA, then Apple MPS, then CPU."""
     if torch.cuda.is_available():
         return "cuda"
     if torch.backends.mps.is_available():
@@ -122,6 +126,7 @@ def embed_images(cfg: dict[str, Any], stems: list[str]) -> np.ndarray:
     bs = cfg["cluster"]["batch_size"]
 
     def load(stem: str) -> Image.Image:
+        """Open one prepared JPEG as RGB for the CLIP processor."""
         return Image.open(root / "images" / f"{stem}.jpg").convert("RGB")
 
     out = []
@@ -154,10 +159,12 @@ def thumbnail_features(cfg: dict[str, Any], stems: list[str]) -> tuple[np.ndarra
             return z["T"], z["Tg"]
 
     def unit(v: np.ndarray) -> np.ndarray:
+        """Centre a vector and scale it to unit length, so a dot product is a Pearson correlation."""
         v = v - v.mean()
         return v / (np.linalg.norm(v) + 1e-8)
 
     def one(stem: str) -> tuple[np.ndarray, np.ndarray]:
+        """Intensity and gradient-magnitude thumbnail vectors for one image."""
         g = cv2.imread(str(root / "images" / f"{stem}.jpg"), cv2.IMREAD_GRAYSCALE)
         t = cv2.resize(g, (64, 36), interpolation=cv2.INTER_AREA).astype(np.float32)
         m = np.hypot(cv2.Sobel(t, cv2.CV_32F, 1, 0), cv2.Sobel(t, cv2.CV_32F, 0, 1))
@@ -174,6 +181,7 @@ def components(n: int, ii: np.ndarray, jj: np.ndarray) -> np.ndarray:
     parent = list(range(n))
 
     def find(x: int) -> int:
+        """Root of x, with path compression."""
         root = x
         while parent[root] != root:
             root = parent[root]
@@ -202,6 +210,7 @@ class PairSims:
         self.g = G[self.i, self.j]
 
     def linked(self, rule: Rule) -> np.ndarray:
+        """Boolean mask over all pairs: True where the pair satisfies every threshold the rule sets."""
         keep = np.ones(len(self.s), bool)
         if rule.clip_min is not None:
             keep &= self.s >= rule.clip_min
@@ -212,6 +221,7 @@ class PairSims:
         return keep
 
     def labels(self, rule: Rule) -> np.ndarray:
+        """Pseudo-camera label per image: connected components of the pairs the rule links."""
         keep = self.linked(rule)
         return components(self.n, self.i[keep], self.j[keep])
 
@@ -224,6 +234,7 @@ class PairSims:
 
 @dataclass
 class Context:
+    """Everything the clustering steps need for one pool: stems, official split and n x n similarity matrices."""
     stems: list[str]
     official: np.ndarray
     sim: np.ndarray   # CLIP cosine
@@ -233,6 +244,7 @@ class Context:
 
 
 def load_context(cfg: dict[str, Any]) -> Context:
+    """Load the pool, compute (or read cached) CLIP embeddings and thumbnails, and build all pairwise similarities."""
     pool = select_pool(cfg)
     stems, official = pool["stem"].tolist(), pool["official_split"].to_numpy()
     emb = embed_images(cfg, stems)
@@ -244,6 +256,7 @@ def load_context(cfg: dict[str, Any]) -> Context:
 
 
 def group_stats(labels: np.ndarray) -> dict[str, Any]:
+    """Size summary of a grouping: number of groups, singletons, largest group and a size histogram."""
     sizes = np.bincount(labels)
     return {
         "groups": int(len(sizes)),
@@ -381,6 +394,7 @@ def pair_grid(cfg, stems, official, R, pairs, title, out: Path, G: np.ndarray | 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     def thumb(i: int) -> np.ndarray:
+        """One image resized to the grid tile size."""
         return cv2.resize(cv2.imread(str(root / "images" / f"{stems[i]}.jpg")), (w, h), interpolation=cv2.INTER_AREA)
 
     tiles = []
@@ -420,6 +434,7 @@ def render_rule_grids(cfg: dict[str, Any], ctx: Context, rule: Rule, out_dir: Pa
 
 
 def plot_nn_hist(values: np.ndarray, xlabel: str, title: str, out: Path, mark: float | None = None) -> Path:
+    """Histogram of each image's nearest-neighbour similarity, with an optional threshold marker."""
     fig, ax = plotting.plt.subplots(figsize=(6.4, 3.2))
     lo = float(np.floor(min(values.min(), 0.7) * 100) / 100)
     ax.hist(values, bins=np.arange(lo, 1.0001, 0.005 if lo >= 0.6 else 0.01),
@@ -461,6 +476,7 @@ def plot_pair_density(pairs: PairSims, out: Path, vlines=(), hlines=(), floor: f
 
 
 def plot_group_sizes(labels: np.ndarray, rule: Rule, out: Path) -> Path:
+    """Bar chart of pseudo-camera sizes under one linking rule."""
     sizes = np.bincount(labels)
     names = [f"{lo}" if lo == hi else f"{lo}+" if hi > 10**8 else f"{lo}–{hi}" for lo, hi in SIZE_BINS]
     counts = [int(((sizes >= lo) & (sizes <= hi)).sum()) for lo, hi in SIZE_BINS]
@@ -474,6 +490,7 @@ def plot_group_sizes(labels: np.ndarray, rule: Rule, out: Path) -> Path:
 
 
 def nearest_neighbour(M: np.ndarray) -> np.ndarray:
+    """Each row's largest off-diagonal value: an image's similarity to its most similar other image."""
     return np.where(np.eye(len(M), dtype=bool), -np.inf, M).max(1)
 
 
@@ -570,11 +587,13 @@ def run(cfg: dict[str, Any], force: bool = False, n_pairs: int = 20) -> dict[str
 
 
 def same_partition(a: np.ndarray, b: np.ndarray) -> bool:
+    """True if two label arrays describe the same grouping, whatever the label numbers."""
     pairs = len(set(zip(a.tolist(), b.tolist())))
     return pairs == len(set(a.tolist())) == len(set(b.tolist()))
 
 
 def main() -> None:
+    """CLI: `python -m src.cluster` (decided rule) or `--sweep` (Phase 1 evidence over many rules)."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sweep", action="store_true",
                     help="evidence sweep over linking rules into results/phase1_sweep/; writes nothing to splits/")

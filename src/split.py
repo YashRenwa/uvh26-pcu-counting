@@ -71,10 +71,12 @@ class Purge:
     passes: int = 1      # 1 = one pass; 0 = repeat until stable
 
     def flagged(self, s: np.ndarray) -> np.ndarray:
+        """Images outside train that are still linked (purge criterion) to any train image."""
         is_train = s == "train"
         return ~is_train & self.P[:, is_train].any(axis=1)
 
     def apply(self, split: pd.Series) -> tuple[pd.Series, dict[str, int]]:
+        """Move flagged images (or their whole groups) to train until no link crosses splits; returns the new split and counts."""
         s0 = split.loc[self.stems].to_numpy()
         s, flagged_any, n_pass = s0.copy(), np.zeros(len(s0), bool), 0
         while self.passes == 0 or n_pass < self.passes:
@@ -187,6 +189,7 @@ def plan(cfg: dict[str, Any]) -> dict[str, Any]:
 
 
 def sha256(path) -> str:
+    """SHA-256 hex digest of a file; used to seal splits/test.txt."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -365,6 +368,7 @@ def preview(cfg: dict[str, Any], n_pairs: int = 20, n_audit: int = 40, out_name:
 
 
 def main() -> None:
+    """CLI: `python -m src.split --preview` (plan only) or `--write` (freeze into splits/)."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--preview", action="store_true", help="plan only; results/phase1_split/, nothing in splits/")
