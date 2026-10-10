@@ -2,157 +2,338 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Counting vehicles for signal timing (UVH-26)</title>
+<title>Counting vehicles for signal timing (UVH-26) - Yash Renwa</title>
 <style>
-  @page { size: A4; margin: 12mm 13mm 12mm 13mm; }
-  :root { --ink: #111; --ink2: #444; --rule: #c9c8c0; --accent: #2a78d6; --soft: #f3f3ef; }
-  html { background: #fff; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; line-height: 1.32; color: var(--ink); margin: 0; }
-  h1 { font-size: 14pt; margin: 0 0 1mm; }
-  .byline { color: var(--ink2); font-size: 9pt; margin-bottom: 2.5mm; }
-  h2 { break-after: avoid; font-size: 11pt; margin: 3.2mm 0 1mm; color: var(--ink); border-bottom: 0.4pt solid var(--rule); padding-bottom: 0.6mm; }
-  p { margin: 0 0 1.6mm; text-align: left; }
-  table { border-collapse: collapse; font-size: 8.6pt; margin: 1mm 0 2mm; }
-  th, td { padding: 0.5mm 1.8mm; border-bottom: 0.4pt solid var(--rule); text-align: right; }
-  th:first-child, td:first-child { text-align: left; }
-  thead th { border-bottom: 0.8pt solid var(--ink2); font-weight: 600; }
-  .cap { font-size: 8.4pt; color: var(--ink2); margin: 0.8mm 0 2mm; }
-  .cap b { color: var(--ink); }
-  .row { display: flex; gap: 3mm; align-items: flex-start; break-inside: avoid; }
-  .row > div:has(img) { break-inside: avoid; }
-  .row > div { flex: 1; min-width: 0; }
-  img { max-width: 100%; display: block; }
-  .pipe { display: flex; align-items: center; gap: 1.5mm; font-size: 8.2pt; margin: 1mm 0 0.5mm; }
-  .pipe .box { border: 0.6pt solid var(--rule); border-radius: 1.5mm; padding: 1.2mm 1.6mm; background: var(--soft); }
-  .pipe .arrow { color: var(--accent); font-weight: 700; font-size: 11pt; }
-  .pipe table { font-size: 7.6pt; margin: 0; white-space: nowrap; }
-  .pipe .box { white-space: nowrap; flex-shrink: 0; }
-  .pipe td, .pipe th { padding: 0.1mm 1mm; }
-  .bar { height: 2.2mm; background: var(--accent); border-radius: 0.6mm; display: inline-block; vertical-align: middle; }
-  .grid6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5mm; }
-  .grid6 figure { margin: 0; }
-  .grid6 img { height: 31mm; width: 100%; object-fit: cover; }
-  .grid6 figcaption { font-size: 7.6pt; color: var(--ink2); margin-top: 0.4mm; line-height: 1.2; }
-  .small { font-size: 8.6pt; }
-  .refs p { font-size: 8.2pt; margin: 0 0 0.6mm; }
-  .page-break { break-before: page; }
-  .key { font-weight: 600; }
+@font-face { font-family: "SS4"; src: url(fonts/source-serif-4-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-style: normal; }
+@font-face { font-family: "SS4"; src: url(fonts/source-serif-4-latin-400-italic.woff2) format("woff2"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "SS4"; src: url(fonts/source-serif-4-latin-600-normal.woff2) format("woff2"); font-weight: 600; font-style: normal; }
+@font-face { font-family: "SS4"; src: url(fonts/source-serif-4-latin-700-normal.woff2) format("woff2"); font-weight: 700; font-style: normal; }
+@font-face { font-family: "INT"; src: url(fonts/inter-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "INT"; src: url(fonts/inter-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: "INT"; src: url(fonts/inter-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+@font-face { font-family: "INT"; src: url(fonts/inter-latin-700-normal.woff2) format("woff2"); font-weight: 700; }
+
+@page { size: A4; margin: 9.5mm 12mm 10.5mm 12mm;
+  @bottom-left { content: "Yash Renwa · 2025AG05357 · AIML ZG525 Computer Vision · EC-1 Assignment 1"; font-family: "INT", "Liberation Sans", sans-serif; font-size: 6.6pt; color: #8a8f96; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "INT", "Liberation Sans", sans-serif; font-size: 6.6pt; color: #8a8f96; }
+}
+:root {
+  --ink: #15171a; --ink2: #4b5058; --ink3: #7a8088;
+  --accent: #1c5d8a; --accent-soft: #edf3f8; --accent-line: #b9cfe0;
+  --rule: #d9dbd6; --panel: #f5f5f1;
+  --warm: #9a6a12; --warm-soft: #fbf6ec; --warm-line: #e6d3ad;
+  --sans: "INT", "Liberation Sans", "DejaVu Sans", sans-serif;
+  --serif: "SS4", "DejaVu Serif", serif;
+}
+* { box-sizing: border-box; }
+html { background: #fff; }
+body { margin: 0; color: var(--ink); font-family: var(--serif); font-size: 8.95pt; line-height: 1.33; font-kerning: normal; }
+p { margin: 0 0 1.5mm; }
+b, strong { font-weight: 600; }
+.sans { font-family: var(--sans); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* title block */
+.title-block { border-bottom: 0.8pt solid var(--ink); padding-bottom: 2.2mm; margin-bottom: 2.4mm; }
+.kicker { font-family: var(--sans); font-size: 7.2pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 1mm; }
+h1 { font-family: var(--sans); font-size: 14pt; line-height: 1.15; font-weight: 700; margin: 0 0 1mm; letter-spacing: -0.01em; }
+.subtitle { font-family: var(--serif); font-style: italic; font-size: 10pt; color: var(--ink2); margin-bottom: 1.8mm; }
+.meta { display: flex; flex-wrap: wrap; gap: 0 5mm; font-family: var(--sans); font-size: 7.6pt; color: var(--ink2); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+/* at a glance */
+.glance { background: var(--panel); border: 0.5pt solid var(--rule); border-radius: 1.6mm; padding: 2.2mm 3mm 2.4mm; margin-bottom: 2.6mm; }
+.glance-lead { font-size: 9pt; margin: 0 0 2mm; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.4mm; }
+.kpi { background: #fff; border: 0.5pt solid var(--rule); border-radius: 1.2mm; padding: 1.6mm 2mm 1.7mm; }
+.kpi .v { font-family: var(--sans); font-weight: 700; font-size: 14pt; color: var(--accent); line-height: 1.05; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.kpi .v small { font-size: 8pt; font-weight: 600; color: var(--ink2); letter-spacing: 0; }
+.kpi .l { font-family: var(--sans); font-size: 6.9pt; line-height: 1.3; color: var(--ink2); margin-top: 0.8mm; }
+
+/* headings */
+h2 { font-family: var(--sans); font-size: 10.6pt; font-weight: 700; margin: 2.5mm 0 1.1mm; padding-bottom: 0.6mm; border-bottom: 0.5pt solid var(--rule); break-after: avoid; display: flex; align-items: baseline; gap: 2mm; }
+h2 .n { color: var(--accent); font-weight: 700; }
+h2 .rub { margin-left: auto; font-size: 6.8pt; font-weight: 500; color: var(--ink3); letter-spacing: 0.02em; }
+h3 { font-family: var(--sans); font-size: 8.4pt; font-weight: 600; margin: 1.8mm 0 0.8mm; color: var(--ink); break-after: avoid; }
+.lead { font-weight: 600; }
+
+/* tables */
+table { border-collapse: collapse; font-family: var(--sans); font-size: 7.3pt; line-height: 1.26; font-variant-numeric: tabular-nums; margin: 0.6mm 0 1.4mm; width: 100%; }
+th, td { padding: 0.55mm 1.6mm; border-bottom: 0.4pt solid var(--rule); text-align: right; vertical-align: top; }
+th:first-child, td:first-child { text-align: left; }
+thead th { border-bottom: 0.8pt solid var(--ink2); font-weight: 600; color: var(--ink); }
+tbody tr:last-child td { border-bottom: 0.8pt solid var(--ink2); }
+td.l, th.l { text-align: left; }
+tr.hl td { background: var(--accent-soft); font-weight: 600; }
+.kv td:first-child { color: var(--ink2); width: 21%; font-weight: 500; }
+.kv td { text-align: left; }
+
+/* figures, captions, layout */
+.row { display: flex; gap: 3.2mm; align-items: flex-start; break-inside: avoid; }
+.row > .c { flex: 1; min-width: 0; }
+img { display: block; max-width: 100%; }
+.cap { font-family: var(--sans); font-size: 6.9pt; line-height: 1.32; color: var(--ink2); margin: 0.9mm 0 1.6mm; }
+.cap b { color: var(--ink); font-weight: 600; }
+figure { margin: 0; break-inside: avoid; }
+
+/* callouts */
+.why { font-family: var(--sans); font-size: 7.25pt; line-height: 1.36; background: var(--accent-soft); border-left: 1.6pt solid var(--accent); padding: 1.3mm 2.2mm; margin: 0.8mm 0 1.6mm; border-radius: 0 1mm 1mm 0; break-inside: avoid; }
+.why b { color: var(--accent); }
+.not { background: var(--warm-soft); border: 0.5pt solid var(--warm-line); border-radius: 1.4mm; padding: 1.7mm 2.6mm 1.5mm; margin: 1.2mm 0 1.8mm; break-inside: avoid; }
+.not h3 { margin-top: 0; color: var(--warm); }
+.not ul { margin: 0; padding-left: 3.6mm; font-family: var(--sans); font-size: 7.15pt; line-height: 1.34; columns: 2; column-gap: 5mm; }
+.not li { margin-bottom: 0.8mm; break-inside: avoid; }
+.not li b { color: var(--ink); }
+.repro { font-family: var(--sans); font-size: 7.05pt; line-height: 1.36; border: 0.5pt solid var(--rule); border-radius: 1.4mm; padding: 1.5mm 2.4mm; margin: 0 0 1.6mm; background: #fff; }
+.repro b { font-weight: 600; }
+code, .mono { font-family: "DejaVu Sans Mono", monospace; font-size: 0.86em; }
+
+/* pipeline figure */
+.pipe { display: flex; align-items: center; gap: 1.6mm; font-family: var(--sans); font-size: 7.1pt; margin: 1mm 0 0.4mm; }
+.pipe .arrow { color: var(--ink3); font-size: 10pt; }
+.pipe .box { border: 0.5pt solid var(--rule); border-radius: 1.2mm; padding: 1.2mm 1.8mm; background: #fff; line-height: 1.3; }
+.pipe .box.acc { border-color: var(--accent-line); background: var(--accent-soft); }
+.pipe .box b { display: block; font-weight: 600; margin-bottom: 0.4mm; }
+.pipe table { width: auto; margin: 0; font-size: 6.9pt; }
+.pipe table td { border: 0; padding: 0.1mm 1mm; }
+.pipe .big { font-size: 12pt; font-weight: 700; color: var(--accent); }
+.bars span { display: block; height: 1.5mm; background: var(--accent); border-radius: 0.4mm; margin: 0.6mm 0; }
+
+/* failure gallery (justified rows) */
+.gallery { display: flex; gap: 1.6mm; margin: 0 auto 0.6mm; width: 92%; }
+.gallery figure { min-width: 0; }
+.gallery img { width: 100%; border-radius: 0.6mm; }
+.gallery .gcap { font-family: var(--sans); font-size: 6.6pt; line-height: 1.25; color: var(--ink2); margin-top: 0.5mm; }
+.gallery .gcap b { color: var(--ink); font-weight: 600; }
+.refs p { font-family: var(--sans); font-size: 6.75pt; line-height: 1.34; color: var(--ink2); margin: 0 0 0.6mm; }
+.refs p b { color: var(--ink); }
+.small { font-size: 8.4pt; }
+.tally td, .tally th { white-space: nowrap; padding-left: 1.2mm; padding-right: 1.2mm; }
 </style>
 </head>
 <body>
 
-<h1>Counting vehicles by class for signal timing on Bengaluru CCTV (UVH-26, YOLOv8)</h1>
-<div class="byline">Yash Renwa · AIML ZG525 Computer Vision, EC-1 Assignment 1 · Track B (object detection) · Code and notebook: github.com/YashRenwa/uvh26-pcu-counting</div>
-
-<h2>1. Problem and task type</h2>
-<p>A traffic engineer sets green time at a junction from the demand on each approach, measured in Passenger Car Units (PCU): a bus or truck weighs about three cars, a two-wheeler three quarters of one. The decision therefore needs, for every camera frame, the <b>number of vehicles of each class</b>. That makes this an object-detection task: image classification gives one label per frame and cannot count, and segmentation adds labelling and compute cost without changing the count. We fine-tune a COCO-pretrained YOLOv8s to detect 14 Indian vehicle classes and convert its per-class counts to PCU.</p>
-<div class="pipe">
-  <div class="box" style="padding:0.6mm;width:40mm"><img src="figures/f1_frame.jpg" style="width:40mm;max-width:none;height:auto"></div>
-  <span class="arrow">→</span>
-  <div class="box">one box per vehicle<br>top class, conf ≥ 0.35</div>
-  <span class="arrow">→</span>
-  <div class="box"><table><tr><td>Two-wheeler</td><td>6</td><td>× 0.75</td></tr><tr><td>Car (4 types)</td><td>3</td><td>× 1.0</td></tr><tr><td>Auto-rickshaw</td><td>2</td><td>× 2.0</td></tr><tr><td>Truck / bus</td><td>1</td><td>× 3.27</td></tr></table></div>
-  <span class="arrow">→</span>
-  <div class="box">PCU per frame<br><b>14.8</b></div>
-  <span class="arrow">→</span>
-  <div class="box">green time ∝ approach PCU<br><span class="bar" style="width:14mm"></span> N<br><span class="bar" style="width:8mm"></span> E</div>
-</div>
-<div class="cap"><b>Figure 1.</b> The decision pipeline (illustrative counts). The output the decision needs is per-class instance counts, weighted by IRC:106-1990 PCU factors.</div>
-
-<h2>2. Data and split</h2>
-<p><b>Source.</b> UVH-26 (Sharma et al., 2025; IISc AIM with the Bengaluru Traffic Police; <b>CC BY 4.0</b>): 26,646 frames (1920×1080) from about 2,800 Safe City cameras, 14 classes, with two consensus label sets from crowd annotators: majority voting (MV) and STAPLE (ST). The Hub copy differs from its card in ways that matter: STAPLE covers only 81% of the frames, and STAPLE repeats 0.8% of its boxes exactly (429 in our pool; removed). We draw a seeded pool of 4,000 frames from the 21,726 that have both label sets (3,201 official train, 799 official val), so the MV and STAPLE runs see identical images.</p>
-<p><b>The official split leaks across cameras.</b> UVH-26 has no camera id, and a fixed camera produces near-identical backgrounds. We link two frames when the correlation of their 64×36 gradient-magnitude thumbnails is g ≥ 0.48 and take connected components as <i>pseudo-cameras</i> (3,083 groups; largest 65 frames). CLIP ViT-B/32 similarity, the planned signal, failed: at cosine ≥ 0.92 it chained 35% of the pool into one group, and on 88 hand-labelled hard pairs it separated cameras with AUC 0.80 against 0.97 for g. Under this grouping, <b>247 of 799 official-val frames (30.9%) share a pseudo-camera with an official-train frame</b>; this is a lower bound, since the link threshold favours precision. A looser direct test (g ≥ 0.36) puts it at 57.4%.</p>
-<div class="row">
-  <div style="flex:1.35"><img src="figures/f2_leak_pair.jpg"><div class="cap"><b>Figure 2.</b> One pseudo-camera: frame 745038 is in the official <i>train</i> split (left), frame 398987 in official <i>val</i> (right). The parked truck, kerb and buildings are the same.</div></div>
-  <div style="flex:1"><table class="small">
-    <thead><tr><th>Our split (seed 87)</th><th>Frames</th><th>Pseudo-cams</th></tr></thead>
-    <tr><td>Train</td><td>3,071</td><td>2,318</td></tr>
-    <tr><td>Val</td><td>452</td><td>355</td></tr>
-    <tr><td>Test (sealed, sha256)</td><td>477</td><td>410</td></tr>
-  </table>
-  <p class="small">Whole pseudo-cameras are split 60/20/20 (best class balance of 50 seeds); a purge then moves any val/test frame with a train frame at g ≥ 0.36 into train until none is left. A random audit of 40 test frames still finds a same-camera train frame for 7 (residual leakage ≈17.5%, 95% CI 9–32%). Every class has val and test boxes; Mini-bus (25), Tempo-traveller (28) and Others (3) have fewer than 30 test boxes, so their AP is low-confidence.</p></div>
-</div>
-
-<h2>3. Preprocessing and augmentation</h2>
-<table class="small">
-  <thead><tr><th>Choice (Ultralytics 8.4 values)</th><th style="text-align:left">Invariance it asserts</th></tr></thead>
-  <tr><td>Resize to 1280 px (JPEG q95); train and test at 960 px</td><td style="text-align:left">Vehicle class is recognisable at half of 1080p resolution</td></tr>
-  <tr><td>Horizontal flip, p = 0.5</td><td style="text-align:left">Type does not depend on left vs right (it mirrors left-hand traffic: fine for type, not for lane direction, which we do not use)</td></tr>
-  <tr><td>No vertical flip, no rotation</td><td style="text-align:left">A fixed CCTV camera is never upside down; these would teach impossible views</td></tr>
-  <tr><td>HSV jitter (h 0.015, s 0.7, v 0.4)</td><td style="text-align:left">Class is invariant to daylight changes between 06:00 and 18:00</td></tr>
-  <tr><td>Scale 0.5, translate 0.1, Mosaic (off for the last 10 epochs)</td><td style="text-align:left">Class is invariant to distance from the camera and position in the frame</td></tr>
-</table>
-
-<h2>4. Baseline</h2>
-<p>YOLOv8s from COCO weights, 960 px, batch 8, seed 42, deterministic, on MV labels, on a free Colab T4. A 5-epoch pilot on val chose to train all layers (mAP@0.50:0.95 0.433, 1.87 min/epoch) over freezing the backbone (<code>freeze=10</code>: 0.405, 1.72 min/epoch). The epoch count, 34, is the largest that fits a 90-minute session with Mosaic epochs costed at their measured 1.35× data cost; the run took 65 minutes and was still improving at its last epoch. <b>Why fine-tune:</b> scored in shared coarse classes on val, COCO YOLOv8s as-is reaches mAP@0.50:0.95 0.181 (it has no three-wheeler, tempo-traveller or van class); the fine-tuned model reaches 0.552 (0.326 → 0.663 on the five COCO-mappable classes). Train/val/test mAP@0.50:0.95 is 0.824 / 0.524 / 0.489: a large fitting gap, concentrated in the car subtypes, but val tracks unseen-camera test within 0.035.</p>
-
-<h2>5. Ablation: MV vs STAPLE training labels</h2>
-<p>A second run differs from the baseline <b>only in its training labels</b>. A diff of the two checkpoints' stored training arguments shows one differing setting, the data file; the two runs train and validate on identical image lists. Scoring each model only against its own label style is biased, so both models are scored against both label sets (Table 1). Differences come with a 95% paired bootstrap over images (500 resamples).</p>
-<table>
-  <thead><tr><th>mAP@0.50:0.95</th><th>Val, MV labels</th><th>Val, STAPLE labels</th><th>Test, MV labels</th><th>Test, STAPLE labels</th></tr></thead>
-  <tr><td>Trained on MV</td><td>0.5245</td><td>0.4923</td><td>0.4892</td><td>0.4550</td></tr>
-  <tr><td>Trained on STAPLE</td><td>0.5131</td><td>0.4948</td><td>0.4750</td><td>0.4482</td></tr>
-  <tr><td><b>STAPLE − MV</b> (95% CI)</td><td>−0.011 (−0.030, +0.014)</td><td>+0.003 (−0.013, +0.024)</td><td>−0.014 (−0.035, +0.011)</td><td><b>−0.007 (−0.023, +0.008)</b></td></tr>
-</table>
-<div class="cap" style="margin-top:-1mm"><b>Table 1.</b> Trained-on × scored-against. The headline column (chosen before test was opened) is STAPLE labels. Using each run's last-epoch weights instead of its val-selected checkpoint gives the same picture (val, STAPLE labels: −0.005, CI −0.021 to +0.019).</div>
-<p><b>Finding: the label-merging method does not measurably change what is learned.</b> Every interval spans zero, and the PCU errors of the two models are within 0.1 PCU of each other. The <i>evaluation</i> labels matter more: either model loses 0.02–0.03 mAP when scored against STAPLE rather than MV. Only two classes move beyond noise on val (Hatchback −0.039, Two-wheeler −0.012 for STAPLE training; uncorrected for 14 comparisons). A second training seed was not run, so seed-to-seed variance is not measured.</p>
-
-<h2>6. Evaluation</h2>
-<p><b>Protocol.</b> Checkpoint, epoch count and the counting threshold were all fixed on val. For counting we keep one box per vehicle (top class, class-agnostic NMS) and sweep confidence 0.05–0.70 on val; the lowest mean absolute PCU error per frame is at <b>confidence 0.35</b> for both models (MV model: 2.74 PCU per val frame, 14.8% of demand). PCU factors follow IRC:106-1990 (factor at 5% and ≥10% traffic share, interpolated on the training traffic mix): two-wheeler 0.75, car 1.0, auto-rickshaw 2.0, LCV and tempo-traveller 1.57, truck, bus and mini-bus 3.27, bicycle 0.4. The test set was then evaluated once, after its checksum was verified.</p>
-<div class="row">
-  <div style="flex:1">
-  <table class="small">
-    <thead><tr><th>Test (477 frames)</th><th>MV model</th><th>STAPLE model</th></tr></thead>
-    <tr><td>mAP@0.50 (MV labels)</td><td>0.571</td><td>0.555</td></tr>
-    <tr><td>mAP@0.50:0.95 (MV labels)</td><td>0.489</td><td>0.475</td></tr>
-    <tr><td>mAP@0.50:0.95 (STAPLE labels)</td><td>0.455</td><td>0.448</td></tr>
-    <tr><td>PCU error per frame, mean |·|</td><td><b>2.61</b></td><td>2.70</td></tr>
-    <tr><td>… as share of mean demand (16.5 PCU)</td><td>15.8%</td><td>16.4%</td></tr>
-    <tr><td>PCU bias per frame (− = under-count)</td><td>−0.93</td><td>−1.25</td></tr>
-    <tr><td>Vehicle-count error per frame</td><td>1.75</td><td>1.81</td></tr>
-  </table>
-  <p class="small">PCU and count errors are against STAPLE labels; against MV labels the MV model's PCU error is 2.29 per frame with bias +0.20, so most of the under-count is STAPLE labelling more vehicles. <b>Per-class test AP@0.50:0.95</b> (MV model, MV labels): three-wheeler 0.80, two-wheeler 0.73, bus 0.65, sedan 0.59, LCV 0.59, hatchback 0.58, truck 0.55, tempo-traveller 0.48*, SUV 0.44, bicycle 0.43, MUV 0.39, van 0.35, mini-bus 0.26*, others 0.01* (*fewer than 30 test boxes).</p>
+<!-- ========================= TITLE ========================= -->
+<div class="title-block">
+  <div class="kicker">AIML ZG525 Computer Vision · EC-1 Assignment 1 · Track B, object detection</div>
+  <h1>Counting vehicles by class for junction signal timing on Bengaluru CCTV</h1>
+  <div class="subtitle">YOLOv8 fine-tuned on UVH-26, with a camera-aware split and a crowd-label ablation</div>
+  <div class="meta">
+    <span><b>Yash Renwa</b></span><span>BITS ID <b>2025AG05357</b></span><span>M.Tech AI/ML (WILP)</span><span>9 October 2026</span>
+    <span>Notebook: <b>uvh26_signal_counting.ipynb</b></span><span>Code: github.com/YashRenwa/uvh26-pcu-counting</span>
   </div>
-  <div style="flex:0.82"><img src="figures/f3_pr_test.png"><div class="cap"><b>Figure 3.</b> Test precision–recall (IoU 0.5, mean over classes), STAPLE labels. The two models are indistinguishable.</div></div>
+</div>
+
+<div class="glance">
+  <p class="glance-lead"><b>In one paragraph.</b> Green time at a junction is set from each approach's demand in Passenger Car Units (PCU). I fine-tuned YOLOv8s to detect 14 Indian vehicle classes on Bengaluru CCTV and turned its counts into PCU. The dataset has no camera ids and its official split leaks cameras, so I rebuilt the split around pseudo-cameras and evaluated on cameras the model never saw. An ablation then showed that the crowd-label merging method (majority vote or STAPLE) does not change what the detector learns.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v">0.489</div><div class="l">test mAP@0.50:0.95 on 477 frames from unseen pseudo-cameras (0.571 at IoU 0.50)</div></div>
+    <div class="kpi"><div class="v">2.61 <small>PCU / frame</small></div><div class="l">mean absolute demand error: 15.8% of the mean 16.5 PCU, a slight under-count</div></div>
+    <div class="kpi"><div class="v">≥ 30.9%</div><div class="l">of official-val frames share a camera with official-train, which is why I rebuilt the split</div></div>
+    <div class="kpi"><div class="v">−0.007</div><div class="l">mAP change from training on STAPLE instead of majority vote; 95% CI −0.023 to +0.008</div></div>
+  </div>
+</div>
+
+<!-- ========================= 1 ========================= -->
+<h2><span class="n">1</span> Problem and task type<span class="rub">Step 1</span></h2>
+<p><span class="lead">The decision.</span> At a signalised junction, green time is shared in proportion to the demand on each approach. Indian practice measures that demand in PCU (IRC:106-1990), because vehicles are not equal: a bus or truck counts about 3.3 cars, an auto-rickshaw 2 and a two-wheeler 0.75. Bengaluru already runs about 2,800 Safe City cameras; my system turns each camera frame into <b>per-class vehicle counts</b> and then into PCU per frame.</p>
+<div class="why"><b>Why detection, not the other two tracks.</b> Classification gives one label per image. Even a multi-label classifier says which vehicle types are present, not how many: a frame with one bus and a frame with five buses look the same to it, so it cannot count. Segmentation would return a mask per vehicle, but the decision only needs the count, masks cost far more to label and compute, and UVH-26 has none. Detection is the smallest output that supports counting: one box and one class per vehicle.</div>
+<figure>
+<div class="pipe">
+  <img src="figures/f1_frame.jpg" style="width:31mm;border-radius:0.8mm">
+  <span class="arrow">→</span>
+  <div class="box acc"><b>YOLOv8s</b>one box per vehicle<br>top class, conf ≥ 0.35</div>
+  <span class="arrow">→</span>
+  <div class="box"><b>Counts × PCU factor</b><table><tr><td>Two-wheeler</td><td>6 × 0.75</td></tr><tr><td>Car (5 classes)</td><td>3 × 1.0</td></tr><tr><td>Auto-rickshaw</td><td>2 × 2.0</td></tr><tr><td>Truck / bus</td><td>1 × 3.28</td></tr></table></div>
+  <span class="arrow">→</span>
+  <div class="box"><b>PCU per frame</b><span class="big">14.8</span></div>
+  <span class="arrow">→</span>
+  <div class="box" style="min-width:27mm"><b>Green time ∝ approach PCU</b><div class="bars"><span style="width:88%"></span><span style="width:52%"></span><span style="width:30%"></span></div></div>
+</div>
+<div class="cap"><b>Figure 1.</b> The decision pipeline, with illustrative counts. The output the decision needs is a count per class, weighted by IRC:106-1990 PCU factors.</div>
+</figure>
+
+<!-- ========================= 2 ========================= -->
+<h2><span class="n">2</span> Data and split<span class="rub">Step 2</span></h2>
+<table class="kv">
+  <tr><td>Source</td><td>UVH-26 (Sharma et al., 2025), released by IISc AIM with the Bengaluru Traffic Police. <b>Licence CC BY 4.0</b>; cited in the references. Downloaded in the notebook from the Hugging Face Hub, pinned to revision 59f82c5.</td></tr>
+  <tr><td>Size</td><td>26,646 frames (1920 × 1080) from about 2,800 cameras, February 2025, 06:00–18:00; 14 classes (5 car types, two- and three-wheelers, bus, truck, LCV, mini-bus, tempo-traveller, bicycle, other).</td></tr>
+  <tr><td>Labels</td><td>Two crowd-consensus sets for the same frames: majority vote (MV) and STAPLE (ST). On the Hub, STAPLE covers only 81% of frames and repeats 429 boxes exactly in my pool; I removed the duplicates.</td></tr>
+  <tr><td>Used here</td><td>A seeded pool of <b>4,000 frames</b> from the 21,726 that carry both label sets (3,201 official train, 799 official val), so both training runs see identical images: 48,932 MV and 51,780 ST boxes, resized to 1280 × 720. The full set is 90 GB; 4,000 frames let each training run finish in about 65 minutes inside one free Colab session, as the brief requires.</td></tr>
+</table>
+
+<p><span class="lead">The official split leaks across cameras.</span> Each camera is fixed, so its frames share a near-identical background, but the camera ids were removed during anonymisation, and the official 80/20 split is random by image. I recovered <i>pseudo-cameras</i> by linking two frames when the correlation of their 64 × 36 gradient-magnitude thumbnails is <b>g ≥ 0.48</b>, then taking connected groups: 3,083 groups, the largest with 65 frames. Under this grouping, <b>247 of 799 official-val frames (30.9%) share a pseudo-camera with an official-train frame</b>. That is a lower bound, because the link threshold favours precision; a looser direct test (g ≥ 0.36) puts it at 57.4%. A model scored on the official split is partly scored on cameras it trained on.</p>
+<div class="row">
+  <div class="c" style="flex:1.25">
+    <figure><img src="figures/f2_leak_pair.jpg">
+    <div class="cap"><b>Figure 2.</b> One pseudo-camera. Frame 745038 is in the official <i>train</i> split (left) and frame 398987 in official <i>val</i> (right): the same parked truck, kerb and buildings.</div></figure>
+  </div>
+  <div class="c">
+    <table>
+      <thead><tr><th>My split (seed 87)</th><th>Frames</th><th>Pseudo-cams</th></tr></thead>
+      <tbody>
+        <tr><td>Train</td><td>3,071</td><td>2,318</td></tr>
+        <tr><td>Val</td><td>452</td><td>355</td></tr>
+        <tr><td>Test, sealed by SHA-256</td><td>477</td><td>410</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="why"><b>Why gradients, not CLIP.</b> I planned to use CLIP embeddings. CLIP judges what a scene means, and busy Bengaluru junctions all mean the same thing: at cosine ≥ 0.92 it chained 35% of the pool into one group. Gradients record where the edges are, and a fixed camera keeps its kerbs and poles in the same pixels through colour, glare and IR changes. On 88 visually labelled hard pairs, gradients separated cameras with AUC 0.97, against 0.80 for CLIP.</div>
+<p>Whole pseudo-cameras were split 60/20/20. The seed was the best class balance of 50 seeds, judged on label counts only, before any training. A purge then moved into train any val or test pseudo-camera with a train frame at g ≥ 0.36, repeating until none was left (671 frames moved). A random audit of 40 test frames still found a same-camera train frame for 7: <b>residual leakage ≈ 17.5%</b> (95% CI 9–32%). Any stricter purge emptied the test set, because each test frame meets about 2,400 train frames and rare false matches add up. So I report the residual rather than claim zero. Every class appears in val and test, but Mini-bus (25), Tempo-traveller (28) and Others (3) have fewer than 30 STAPLE test boxes, so their AP is low-confidence.</p>
+
+<!-- ========================= 3 ========================= -->
+<h2><span class="n">3</span> Preprocessing and augmentation<span class="rub">Step 3</span></h2>
+<table>
+  <thead><tr><th class="l" style="width:34%">Choice (Ultralytics 8.4 values)</th><th class="l">Invariance it asserts, and why</th></tr></thead>
+  <tbody>
+    <tr><td>Resize to 1280 px (JPEG q95); train and test at 960 px</td><td class="l">Vehicle class is recognisable at half of 1080p resolution. 960 px keeps distant two-wheelers visible while two runs still fit the GPU budget.</td></tr>
+    <tr><td>Horizontal flip, p = 0.5</td><td class="l">Vehicle type does not depend on left vs right. Flipping mirrors left-hand traffic: fine for type, wrong for lane direction, which I do not use.</td></tr>
+    <tr><td>No vertical flip, no rotation</td><td class="l">A fixed CCTV camera is never upside down or tilted; these would teach views that never occur.</td></tr>
+    <tr><td>HSV jitter (h 0.015, s 0.7, v 0.4)</td><td class="l">Class is invariant to daylight changes between 06:00 and 18:00, haze and colour casts.</td></tr>
+    <tr><td>Scale 0.5, translate 0.1, Mosaic (off for the last 10 epochs)</td><td class="l">Class is invariant to distance from the camera and to position in the frame. Mosaic also shows more small vehicles per batch.</td></tr>
+  </tbody>
+</table>
+
+<!-- ========================= 4 ========================= -->
+<h2><span class="n">4</span> Baseline: YOLOv8s fine-tuned on majority-vote labels<span class="rub">Step 4</span></h2>
+<p>YOLOv8s from COCO weights (YOLOv8 is on the course library list), 960 px, batch 8, seed 42, deterministic, MV labels, on a free Colab T4. COCO already knows cars, buses, trucks, motorcycles and bicycles. It has no class for three-wheelers, tempo-travellers or vans, and it has never seen elevated Indian CCTV viewpoints, so I fine-tuned rather than used it as-is.</p>
+<div class="row">
+  <div class="c">
+    <h3>What I froze, and why</h3>
+    <table>
+      <thead><tr><th>5-epoch pilot, val</th><th>mAP@.50:.95</th><th>mAP@.50</th><th>min/epoch</th></tr></thead>
+      <tbody>
+        <tr><td>Backbone frozen (freeze = 10)</td><td>0.405</td><td>0.495</td><td>1.72</td></tr>
+        <tr class="hl"><td>All layers trained (chosen)</td><td>0.433</td><td>0.519</td><td>1.87</td></tr>
+      </tbody>
+    </table>
+    <p class="small">I fixed the rule before the pilot: unfreeze the backbone only if it gains at least 0.02 mAP@0.50:0.95. It gained 0.028 for 9% more time per epoch, so <b>nothing is frozen</b>. New viewpoints and new classes need the backbone to adapt. <b>Epochs: 34</b>, the largest number that fits one 90-minute session with Mosaic epochs costed at their measured 1.35× data cost. The run took 65 minutes, and its best epoch was the last, so the model was still improving.</p>
+  </div>
+  <div class="c">
+    <h3>Why fine-tune: same classes, before and after (val)</h3>
+    <table>
+      <thead><tr><th>mAP@0.50:0.95, MV labels</th><th>COCO as-is</th><th>Fine-tuned</th></tr></thead>
+      <tbody>
+        <tr><td>All 9 shared coarse classes</td><td>0.181</td><td>0.552</td></tr>
+        <tr><td>5 classes COCO can name</td><td>0.326</td><td>0.663</td></tr>
+        <tr><td>Two-wheeler (COCO “motorcycle”)</td><td>0.120</td><td>0.707</td></tr>
+        <tr><td>Three-wheeler (no COCO class)</td><td>0.000</td><td>0.773</td></tr>
+      </tbody>
+    </table>
+    <p class="small"><b>Generalisation.</b> mAP@0.50:0.95 is 0.824 on train, 0.524 on val and 0.489 on test. The train–val gap is largest for the car subtypes (MUV 0.43, SUV 0.39, Van 0.51) and smallest for three-wheelers (0.10) and two-wheelers (0.12). Val tracks unseen-camera test within 0.035, so val was a fair guide for every choice.</p>
+  </div>
+</div>
+
+<!-- ========================= 5 ========================= -->
+<h2><span class="n">5</span> One improvement, as an ablation: STAPLE vs majority-vote training labels<span class="rub">Step 5</span></h2>
+<p><span class="lead">Why this change.</span> UVH-26 gives two consensus versions of the same crowd annotations, and they disagree: on the same 4,000 frames STAPLE has 6% more boxes (51,780 vs 48,932), split differently across the car subtypes. Anyone training on crowd labels faces this choice, so I asked whether the merging method changes what the detector learns. <b>Exactly one thing changes: the training label set.</b> A diff of the two checkpoints' stored training arguments shows a single differing setting, the data file. Both runs use the same image lists, seed, 34 epochs and configuration, and neither was resumed.</p>
+<div class="why"><b>Keeping the comparison fair.</b> Scoring each model only against its own label style would favour it, so I scored both models against both label sets. I fixed the headline column (STAPLE labels) before opening the test set, and I claim a difference only if both columns agree in direction and the 95% paired bootstrap interval over images (500 resamples) excludes zero.</div>
+<div style="break-inside:avoid"><table>
+  <thead><tr><th>mAP@0.50:0.95</th><th>Val, MV labels</th><th>Val, STAPLE labels</th><th>Test, MV labels</th><th>Test, STAPLE labels (headline)</th></tr></thead>
+  <tbody>
+    <tr><td>Trained on MV</td><td>0.5245</td><td>0.4923</td><td>0.4892</td><td>0.4550</td></tr>
+    <tr><td>Trained on STAPLE</td><td>0.5131</td><td>0.4948</td><td>0.4750</td><td>0.4482</td></tr>
+    <tr class="hl"><td>STAPLE − MV (95% CI)</td><td>−0.011 (−0.030, +0.014)</td><td>+0.003 (−0.013, +0.024)</td><td>−0.014 (−0.035, +0.011)</td><td>−0.007 (−0.023, +0.008)</td></tr>
+  </tbody>
+</table>
+<div class="cap" style="margin-top:-0.6mm"><b>Table 1.</b> Trained-on × scored-against, both reported. Using each run's last-epoch weights instead of its val-selected checkpoint gives the same picture (val, STAPLE labels: −0.005, CI −0.021 to +0.019).</div></div>
+<p><span class="lead">Finding: the label-merging method does not measurably change what is learned.</span> Every interval spans zero, and the two models' PCU errors are within 0.1 PCU of each other. The <i>evaluation</i> labels matter more: either model loses 0.02–0.03 mAP when scored against STAPLE rather than MV, so a UVH-26 benchmark number depends on which label set it was scored against. The STAPLE model trades precision for recall (against MV labels on val: recall 0.651 vs 0.554, precision 0.520 vs 0.692) without moving mAP. Only two classes move beyond noise on val, Hatchback (−0.039) and Two-wheeler (−0.012), out of 14 uncorrected comparisons.</p>
+
+<!-- ========================= 6 ========================= -->
+<h2><span class="n">6</span> Evaluation on a test set I never tuned on<span class="rub">Step 6</span></h2>
+<p><span class="lead">Protocol.</span> The checkpoint, epoch count, freeze choice and counting threshold were all fixed on val. I opened the test set once, after verifying its checksum; later notebook runs reload that saved evaluation rather than re-scoring. Track metrics: mAP at IoU 0.50 and averaged over 0.50:0.95, with a precision–recall curve, over the full confidence sweep (detections down to 0.001). Decision metric: <b>PCU error per frame</b> at the operating threshold.</p>
+<div class="row">
+  <div class="c" style="flex:0.86">
+    <p class="small"><b>From boxes to PCU.</b> I keep one box per vehicle (its top class, with NMS across classes), because mAP-style evaluation lets one box carry several labels and would count a vehicle twice. On val I swept the confidence threshold from 0.05 to 0.70. The lowest mean absolute PCU error per frame is at <b>confidence 0.35</b> for both models (MV model: 2.74 PCU per val frame, 14.8% of demand), and I froze it there. PCU factors follow IRC:106-1990, interpolating between its 5% and ≥ 10% traffic-share columns on the training traffic mix: two-wheeler 0.75, car 1.0, auto-rickshaw 2.0, LCV and tempo-traveller 1.54, truck, bus and mini-bus 3.28, bicycle 0.4, other 4.0.</p>
+  </div>
+  <div class="c">
+    <figure><img src="figures/sweep.png">
+    <div class="cap"><b>Figure 3.</b> Choosing the operating threshold on val (452 frames): mean absolute (left) and signed (right) PCU error per frame. Both models bottom out at 0.35.</div></figure>
+  </div>
 </div>
 <div class="row">
-  <div style="flex:1.25"><img src="figures/f4_confusion_class_mv_test.png"></div>
-  <div style="flex:1"><div class="cap" style="margin-top:0"><b>Figure 4.</b> Test confusion of the counting pipeline (MV model, confidence 0.35, STAPLE labels; rows sum to 1 with the <i>missed</i> column; the bottom row counts predictions with no labelled vehicle). <b>Where accuracy is lost:</b> the car subtypes are confused with each other (only 29–57% on the diagonal), which costs nothing in PCU because all weigh 1.0. What does cost PCU is that 25–28% of trucks and buses are <i>missed</i> and 15% of trucks are called LCVs (3.27 vs 1.57 PCU); bicycles are missed (47%) or called two-wheelers (20%). Two- and three-wheelers are the strongest classes (88% correct), but 427 two-wheeler predictions have no labelled vehicle, mostly parked or distant bikes. Aggregated to IRC categories, 74% of cars, 57% of trucks/buses and 61% of LCVs are counted in the right category.</div></div>
+  <div class="c" style="flex:1.02">
+    <table>
+      <thead><tr><th>Test, 477 frames</th><th>MV model</th><th>STAPLE model</th></tr></thead>
+      <tbody>
+        <tr><td>mAP@0.50 (MV labels)</td><td>0.571</td><td>0.555</td></tr>
+        <tr><td>mAP@0.50:0.95 (MV labels)</td><td>0.489</td><td>0.475</td></tr>
+        <tr><td>mAP@0.50:0.95 (STAPLE labels)</td><td>0.455</td><td>0.448</td></tr>
+        <tr class="hl"><td>PCU error per frame, mean |·|</td><td>2.61</td><td>2.70</td></tr>
+        <tr><td>… as a share of mean demand (16.5 PCU)</td><td>15.8%</td><td>16.4%</td></tr>
+        <tr><td>PCU bias per frame (− = under-count)</td><td>−0.93</td><td>−1.25</td></tr>
+        <tr><td>Vehicle-count error per frame</td><td>1.75</td><td>1.81</td></tr>
+      </tbody>
+    </table>
+    <p class="small">PCU and count errors are measured against STAPLE labels at confidence 0.35. Against MV labels, the MV model's PCU error is 2.29 per frame with a bias of +0.20, so most of the under-count reflects STAPLE labelling more vehicles. <b>Per-class test AP@0.50:0.95</b> (MV model, MV labels): three-wheeler 0.80, two-wheeler 0.73, bus 0.65, sedan 0.59, LCV 0.59, hatchback 0.58, truck 0.55, SUV 0.44, bicycle 0.43, MUV 0.39, van 0.35; low-confidence: tempo-traveller 0.48, mini-bus 0.26, others 0.01.</p>
+    <figure style="width:62%"><img src="figures/pr.png">
+    <div class="cap"><b>Figure 4.</b> Test precision–recall curve (IoU 0.50, mean over classes), STAPLE labels. The two models are indistinguishable.</div></figure>
+  </div>
+  <div class="c">
+    <figure><img src="figures/irc_conf.png">
+    <div class="cap"><b>Figure 5.</b> Where demand is lost on test. Confusion matrix of the counting pipeline by IRC category (MV model, confidence 0.35, STAPLE labels). Rows sum to 1 including the <i>missed</i> column; the bottom row counts predictions with no labelled vehicle.</div></figure>
+    <p class="small">Two-wheelers and autos are counted in the right category 88% of the time, and cars 74%. What costs PCU: <b>26% of trucks and buses are missed</b> and 11% are called LCVs (3.28 vs 1.54 PCU); bicycles are missed (47%) or called two-wheelers (20%). There are 427 two-wheeler predictions with no labelled vehicle, mostly parked or distant bikes. On the 14-class matrix the four car body types confuse each other heavily (29–57% on the diagonal), but that costs nothing in PCU, because every car class weighs 1.0.</p>
+  </div>
 </div>
 
-<h2>7. Error analysis</h2>
-<p>Test frames were ranked by absolute PCU error and by missed vehicles; the 30 worst (24% of all absolute PCU error) were rendered with every box coloured by outcome and each was given one cause.</p>
+<!-- ========================= 7 ========================= -->
+<h2><span class="n">7</span> Error analysis<span class="rub">Step 7</span></h2>
 <div class="row">
-  <div style="flex:0.95"><table class="small">
-    <thead><tr><th>Cause</th><th>Frames</th><th>|PCU| error</th><th>Net PCU</th></tr></thead>
-    <tr><td><b>Dense occlusion</b></td><td><b>11</b></td><td><b>103 (40%)</b></td><td><b>−96</b></td></tr>
-    <tr><td>Small or distant vehicle</td><td>7</td><td>66 (20%)</td><td>−39</td></tr>
-    <tr><td>Cut off at frame edge</td><td>5</td><td>51 (20%)</td><td>−32</td></tr>
-    <tr><td>Fine-grained confusion</td><td>3</td><td>32 (10%)</td><td>−13</td></tr>
-    <tr><td>Other (unlabelled parked vehicles; a crane)</td><td>2</td><td>23</td><td>+2</td></tr>
-    <tr><td>Lighting (low sun, haze)</td><td>1</td><td>9</td><td>−9</td></tr>
-    <tr><td>Label noise / MV–STAPLE disagreement</td><td>1</td><td>8</td><td>−8</td></tr>
-  </table></div>
-  <div style="flex:1"><p class="small"><b>The dominant pattern: occluded vehicles go uncounted, so demand is under-estimated.</b> 24 of the 30 worst frames are under-counts. The largest group is vehicles hidden behind other vehicles in queues, rows of parked two-wheelers, and trucks or buses behind hoardings, flyover pillars and market umbrellas. Hidden heavy vehicles cost most, at 3.27 PCU each. One construction-site camera under a flyover supplies three of the 30. Label disagreement explains little: in 28 of the 30 frames every missed vehicle is also in the MV labels.</p></div>
+  <div class="c" style="flex:1.08">
+    <p class="small">I ranked test frames by absolute PCU error and by missed vehicles, took the <b>30 worst</b> (24% of all absolute PCU error on test), drew every box coloured by outcome, and gave each frame one cause.</p>
+    <table class="tally">
+      <thead><tr><th>Cause</th><th>Frames</th><th>Missed</th><th>|PCU| error</th><th>Net PCU</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Dense occlusion</td><td>11</td><td>95</td><td>103.3 (35%)</td><td>−95.5</td></tr>
+        <tr><td>Small or distant</td><td>7</td><td>53</td><td>66.2 (23%)</td><td>−38.8</td></tr>
+        <tr><td>Cut off at frame edge</td><td>5</td><td>30</td><td>51.2 (17%)</td><td>−32.1</td></tr>
+        <tr><td>Fine-grained confusion</td><td>3</td><td>14</td><td>32.3 (11%)</td><td>−12.7</td></tr>
+        <tr><td>Other (parked vehicles, a crane)</td><td>2</td><td>8</td><td>22.9 (8%)</td><td>+2.3</td></tr>
+        <tr><td>Lighting (low sun, haze)</td><td>1</td><td>5</td><td>9.1 (3%)</td><td>−9.1</td></tr>
+        <tr><td>Label noise (bus labelled twice)</td><td>1</td><td>7</td><td>8.0 (3%)</td><td>−8.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="c">
+    <p><span class="lead">What they have in common: occluded vehicles go uncounted, so demand is under-estimated.</span> 24 of the 30 worst frames are under-counts. The largest group is vehicles hidden behind other vehicles: queues, rows of parked two-wheelers, and trucks or buses behind hoardings, flyover pillars and market umbrellas. A measure independent of my tags agrees: <b>139 of the 212 missed vehicles (66%) have more than 30% of their area covered by another labelled vehicle</b>. Hidden heavy vehicles cost the most, at 3.28 PCU each, and one construction-site camera under a flyover supplies three of the 30 frames. Label disagreement explains little: only 12 of the 212 misses are vehicles that exist in the STAPLE labels but not in MV.</p>
+  </div>
 </div>
-<div class="grid6">
-  <figure><img src="figures/f5_rank02.jpg"><figcaption><b>Occlusion</b> · dense queue: 14 vehicles missed, −14.8 PCU</figcaption></figure>
-  <figure><img src="figures/f5_rank13.jpg"><figcaption><b>Occlusion</b> · truck, car and bikes behind a large truck, −11.1 PCU</figcaption></figure>
-  <figure><img src="figures/f5_rank23.jpg"><figcaption><b>Occlusion</b> · truck behind hoarding, bus under the flyover, −9.8 PCU</figcaption></figure>
-  <figure><img src="figures/f5_rank29.jpg"><figcaption><b>Occlusion</b> · row of parked motorcycles, −7.3 PCU</figcaption></figure>
-  <figure><img src="figures/f5_rank24.jpg"><figcaption><b>Confusion</b> · LCVs called trucks (+1.7 PCU each), +9.8 PCU</figcaption></figure>
-  <figure><img src="figures/f5_rank30.jpg"><figcaption><b>Lighting</b> · low sun and haze hide two buses, −9.1 PCU</figcaption></figure>
+<div class="gallery">
+  <figure style="flex:1.55"><img src="figures/f5_rank02.jpg"><div class="gcap"><b>Occlusion</b> · dense queue: 14 vehicles missed, −14.8 PCU</div></figure>
+  <figure style="flex:1.947"><img src="figures/f5_rank13.jpg"><div class="gcap"><b>Occlusion</b> · truck, car and bikes behind a large truck, −11.1 PCU</div></figure>
+  <figure style="flex:2.027"><img src="figures/f5_rank23.jpg"><div class="gcap"><b>Occlusion</b> · truck behind a hoarding, bus under the flyover, −9.8 PCU</div></figure>
 </div>
-<div class="cap"><b>Figure 5.</b> Failures from the worst 30 test frames. Red: labelled vehicle missed; violet: prediction with no labelled vehicle; orange: wrong class, written PRED (true); aqua: correct.</div>
+<div class="gallery">
+  <figure style="flex:1.183"><img src="figures/f5_rank29.jpg"><div class="gcap"><b>Occlusion</b> · row of parked motorcycles, −7.3 PCU</div></figure>
+  <figure style="flex:3.5"><img src="figures/f5_rank24.jpg"><div class="gcap"><b>Confusion</b> · three LCVs called trucks (+1.7 PCU each), +9.8 PCU</div></figure>
+  <figure style="flex:1.863"><img src="figures/f5_rank30.jpg"><div class="gcap"><b>Lighting</b> · low sun and haze hide two buses and a truck, −9.1 PCU</div></figure>
+</div>
+<div class="cap"><b>Figure 6.</b> Six of the 30 worst test frames. Red: labelled vehicle missed; violet: prediction with no labelled vehicle; orange: wrong class, written PRED (true); aqua: correct.</div>
 
-<h2>8. Conclusion</h2>
-<p><b>What I would deploy:</b> YOLOv8s fine-tuned on majority-vote labels, counting one box per vehicle at confidence 0.35. On cameras it never saw it reaches mAP@0.50:0.95 of 0.489 (MV labels) and estimates demand within 2.6 PCU per frame (15.8%), with a slight under-count. STAPLE labels are not worth switching to for training: the measured effect is within ±0.02 mAP of zero. <b>The number I refuse to promise</b> is the demand of a dense queue: the worst frames are 10–16 PCU short because occluded heavy vehicles are missed, so green time set from these counts needs a density-dependent correction or a safety margin. I also do not promise per-class counts for the car subtypes or for mini-buses, tempo-travellers and "others", and ≈17% residual same-camera overlap means test may slightly flatter performance on a truly new camera.</p>
+<!-- ========================= 8 ========================= -->
+<h2><span class="n">8</span> Conclusion<span class="rub">Step 8</span></h2>
+<p><span class="lead">What I would deploy.</span> YOLOv8s fine-tuned on majority-vote labels, counting one box per vehicle at confidence 0.35. On cameras it never saw, it reaches mAP@0.50:0.95 of 0.489 (MV labels) and estimates demand within 2.6 PCU per frame (15.8%), with a slight under-count. I prefer it to the STAPLE model because their accuracy is equal within noise and its PCU bias is smaller (−0.93 vs −1.25).</p>
+<p><span class="lead">The number I refuse to promise: the demand of a dense queue.</span> The worst frames are 10–16 PCU short, because occluded heavy vehicles are missed, and dense queues are exactly the approaches that most need green time. Green time set from these counts needs a density-dependent correction, or a safety margin, before it is trusted. I also do not promise per-class counts for the car subtypes or for mini-buses, tempo-travellers and “others”, or any performance at night, in rain or outside Bengaluru: the data is daytime February traffic in one city.</p>
 
-<h2>Declarations and references</h2>
+<div class="not">
+  <h3>What I did not do, and why</h3>
+  <ul>
+    <li><b>No second training seed.</b> It would cost about 2 GPU-hours. The bootstrap covers evaluation noise, not seed-to-seed variance, which remains unmeasured.</li>
+    <li><b>Training stopped while still improving.</b> 34 epochs is one free-Colab session. Both runs had the same budget, so the comparison is fair; absolute numbers are conservative.</li>
+    <li><b>No perfect camera split.</b> Without camera ids, no signal separates cameras perfectly. I measured the 17.5% residual and report it; any stricter purge emptied the test set.</li>
+    <li><b>Planned leakage check not run.</b> Test metrics binned by similarity to the nearest train frame were planned but not run in time; the residual stays a stated limitation.</li>
+    <li><b>Rare classes not merged.</b> Merging classes after seeing the test results would be tuning on test, so they are reported as low-confidence instead.</li>
+    <li><b>Ultralytics' confusion matrix not used.</b> It is built from mAP predictions (confidence 0.001, several labels per box) and overstates confusion, so I built one from the counting pipeline.</li>
+  </ul>
+</div>
+
+<div class="repro"><b>Reproducibility.</b> Seeds: training 42 (Python, NumPy, PyTorch, CUDA, Ultralytics), split 87. Code pinned to commit <span class="mono">ee0e619</span>; dataset revision <span class="mono">59f82c5</span>; test list SHA-256 <span class="mono">f8181d24…</span>, verified before evaluation. Ultralytics 8.4.173, PyTorch 2.11, Python 3.13, free Colab T4. The notebook runs top to bottom (download, preparation, split check, two 9-minute pilots, two 65-minute runs, evaluation); it reuses finished runs saved on Drive and retrains only if none exist. Every result comes from a notebook cell output, except the split-audit figures (40-frame audit, 88 labelled pairs, 57.4%), which are in <span class="mono">results/</span>.</div>
+
 <div class="refs">
-<p><b>AI assistance.</b> Claude (Anthropic), working through Claude Code, wrote the code in the repository, ran the Colab notebook through browser automation at the author's request, proposed analysis options, assigned the Phase 6 cause tags from the rendered images, drew Figure 1 and drafted this report from the notebook outputs. The author set the plan and made the design decisions recorded in the decision log: the pseudo-camera signal and thresholds, split ratios and purge, freeze choice, the STAPLE headline column, the PCU mapping and the threshold rule. Figures 2–5 are notebook outputs; every number above appears in a notebook cell output.</p>
-<p><b>Dataset.</b> A. Sharma, C. Mhatre, S. Gawali, R. Bokkasam, B. Kishore, V. Pattanaik, T. Rambha, A. R. Pinjari, V. Kovvali, A. Chakraborty, P. Rathore, R. Krishnapuram, Y. Simmhan. <i>Towards Image Annotations and Accurate Vision Models for Indian Traffic, UVH-26-v1.0.</i> Technical report, IISc, 2025. arXiv:2511.02563. Licence CC BY 4.0; Hub revision 59f82c5.</p>
-<p>G. Jocher, A. Chaurasia, J. Qiu. Ultralytics YOLOv8, 2023 (v8.4.173 used). · A. Radford et al. Learning transferable visual models from natural language supervision (CLIP). ICML 2021. · S. K. Warfield, K. H. Zou, W. M. Wells. Simultaneous truth and performance level estimation (STAPLE). IEEE TMI 23(7), 2004. · Indian Roads Congress. IRC:106-1990, Guidelines for Capacity of Urban Roads in Plain Areas.</p>
+  <p><b>AI assistance.</b> I used Claude (Anthropic) as a planning and review partner, and Claude Code to write the code in the repository and to draft this report from the notebook outputs. I ran the notebook on Colab, reviewed the 30 worst test frames and assigned their cause tags, and made the framing, design and analysis decisions, recording each in a decision log before seeing the result it affected.</p>
+  <p><b>References.</b> A. Sharma, C. Mhatre, S. Gawali, R. Bokkasam, B. Kishore, V. Pattanaik, T. Rambha, A. R. Pinjari, V. Kovvali, A. Chakraborty, P. Rathore, R. Krishnapuram, Y. Simmhan. <i>Towards Image Annotations and Accurate Vision Models for Indian Traffic, UVH-26-v1.0</i>. Technical report, IISc, 2025, arXiv:2511.02563 (dataset, CC BY 4.0). · G. Jocher, A. Chaurasia, J. Qiu. <i>Ultralytics YOLOv8</i>, 2023. · A. Radford et al. Learning transferable visual models from natural language supervision (CLIP). ICML 2021. · S. K. Warfield, K. H. Zou, W. M. Wells. Simultaneous truth and performance level estimation (STAPLE). IEEE TMI 23(7), 2004. · Indian Roads Congress. IRC:106-1990, Guidelines for Capacity of Urban Roads in Plain Areas.</p>
 </div>
+
 </body>
 </html>
