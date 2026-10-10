@@ -55,8 +55,8 @@ counts are weighted by IRC:106-1990 PCU factors.
 4. Run all. The setup cell mounts Google Drive, clones this repo at the pinned commit `ee0e619`, installs
    `requirements.txt` (keeping Colab's CUDA torch) and prints the seed and every library version.
 
-The code under `src/`, `configs/` and `splits/` is identical at `ee0e619` and at the tip of `main`.
-Later commits add only documentation, the report and the notebook with outputs.
+Later commits on `main` add only documentation (this README, docstrings), the report and the notebook
+with outputs. The executable code, `configs/` and `splits/` are unchanged since `ee0e619`.
 
 ### Local (CPU smoke tests)
 
